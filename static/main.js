@@ -35,6 +35,10 @@ window.onload = () => {
   cargarAvatarSVG();
   cargarListaCargos();
 
+  if (!localStorage.getItem("esEstudiantePoliglota")) {
+    localStorage.setItem("esEstudiantePoliglota", "no");
+  }
+
   const usuarioGuardado = localStorage.getItem("usuario");
   const historialGuardado = localStorage.getItem("historial");
 
@@ -43,11 +47,11 @@ window.onload = () => {
     const resultadoPrevio = localStorage.getItem("feedbackResultado");
     if (resultadoPrevio) {
       const parsed = JSON.parse(resultadoPrevio);
-      mostrarVistaFeedback(parsed); // Ya está definido en ui.js
+      mostrarVistaFeedback(parsed);
     } else {
-      mostrarPaso(6); 
+      mostrarPaso(6);
     }
-    return; 
+    return;
   }
 
   if (usuarioGuardado && historialGuardado) {
@@ -95,28 +99,69 @@ function configurarBotonesUI() {
       alert("Selecciona un nivel de inglés.");
       return;
     }
-
-    // Validación completa antes de pasar al paso 5 (chat)
     if (!usuario.nombre || !usuario.cargo || !usuario.nivel) {
       alert("Falta completar uno o más pasos anteriores.");
       return;
     }
-
     mostrarPaso(5);
     iniciarChat();
   };
 
-  document.getElementById("btn-enviar-resultados").onclick = () => {
-    const email = document.getElementById("input-email").value.trim();
-    const pais = document.getElementById("input-pais").value.trim();
-    if (!email || !pais) {
-      alert("Completa tu correo y país.");
+  document.getElementById("form-contacto").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const nombre = document.getElementById("input-contacto-nombre").value.trim();
+    const apellido = document.getElementById("input-contacto-apellido").value.trim();
+    const email = document.getElementById("input-contacto-email").value.trim();
+    const pais = document.getElementById("input-pais").value.trim(); // Asegúrate de que exista este input
+
+    const errorDiv = document.getElementById("error-contacto");
+    errorDiv.classList.add("d-none"); // Oculta errores anteriores
+
+    if (!nombre || !apellido || !email || !pais) {
+      errorDiv.textContent = "Por favor completa todos los campos.";
+      errorDiv.classList.remove("d-none");
       return;
     }
 
-    console.log("✅ Email y país:", { email, pais });
-    mostrarPaso(7);
-  };
+    const hubspotPortalId = "20619710";
+    const hubspotFormId = "1f5602bf-ec35-45ac-8513-e6014d89c02b";
+
+    const payload = {
+      fields: [
+        { name: "firstname", value: nombre },
+        { name: "lastname", value: apellido },
+        { name: "email", value: email },
+        { name: "country", value: pais }
+      ],
+      context: {
+        pageUri: window.location.href,
+        pageName: document.title
+      }
+    };
+
+    try {
+      const response = await fetch(`https://api.hsforms.com/submissions/v3/integration/submit/${hubspotPortalId}/${hubspotFormId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        mostrarPaso(7);
+        mostrarVistaFeedback(JSON.parse(localStorage.getItem("feedbackResultado")));
+      } else {
+        console.error("❌ Error en envío HubSpot:", await response.text());
+        errorDiv.textContent = "Hubo un problema al enviar tus datos. Intenta nuevamente.";
+        errorDiv.classList.remove("d-none");
+      }
+    } catch (err) {
+      console.error("❌ Error en conexión HubSpot:", err);
+      errorDiv.textContent = "No se pudo conectar con el servidor. Intenta más tarde.";
+      errorDiv.classList.remove("d-none");
+    }
+  });
+
 
   document.getElementById("mic-btn").onclick = () => toggleMicMuted();
   document.getElementById("end-btn").onclick = () => {
@@ -130,13 +175,17 @@ function configurarBotonesUI() {
 function mostrarPaso(n) {
   for (let i = 1; i <= 7; i++) {
     const div = document.getElementById(`paso-${i}`);
+    const divb = document.getElementById(`paso-${i}b`);
     if (div) {
       div.classList.toggle("d-none", i !== n);
       div.classList.toggle("d-flex", i === n);
     }
+    if (divb) {
+      divb.classList.toggle("d-none", `${i}.5` !== `${n}`);
+      divb.classList.toggle("d-flex", `${i}.5` === `${n}`);
+    }
   }
 
-  // Mostrar barra solo desde paso 2 a 4
   const mostrarProgreso = n >= 2 && n <= 4;
   const barra = document.getElementById("barra-progreso-contenedor");
   const texto = document.getElementById("texto-progreso");
@@ -144,9 +193,8 @@ function mostrarPaso(n) {
   if (barra) barra.style.display = mostrarProgreso ? "block" : "none";
   if (texto) texto.style.display = mostrarProgreso ? "block" : "none";
 
-  // Ajuste visual: paso 2 es "Paso 1 de 3"
   if (mostrarProgreso) {
-    const pasoVisual = n - 1; // porque paso 2 = visual 1
+    const pasoVisual = n - 1;
     actualizarProgresoVisual(pasoVisual, 3);
   }
 }
@@ -338,10 +386,12 @@ window.addEventListener("DOMContentLoaded", () => {
     if (btn) {
       btn.classList.remove("d-none");
       btn.addEventListener("click", () => {
+        const esEstudiante = confirm("¿Simular como estudiante de Poliglota?");
+
         const usuarioFalso = {
           nombre: "Jose",
           cargo: "Project Manager",
-          nivel: "Intermedio",
+          nivel: "intermedio",
           empresa: "Poliglota"
         };
 
@@ -368,6 +418,7 @@ window.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("usuario", JSON.stringify(usuarioFalso));
         localStorage.setItem("historial", JSON.stringify(historialFalso));
         localStorage.setItem("evaluacionFinal", "true");
+        localStorage.setItem("esEstudiantePoliglota", esEstudiante ? "sí" : "no");
 
         // Llamar al backend real
         fetch("/evaluate", {
@@ -379,11 +430,16 @@ window.addEventListener("DOMContentLoaded", () => {
           .then(data => {
             console.log("✅ Resultado de evaluación simulada:", data);
             localStorage.setItem("feedbackResultado", JSON.stringify(data));
-            import("./ui.js").then(mod => mod.mostrarVistaFeedback(data));
+
+            if (esEstudiante) {
+              import("./ui.js").then(mod => mod.mostrarVistaFeedback(data));
+            } else {
+              // Muestra paso 6.5
+              mostrarPaso(6); // <-- 6 es el formulario antes del feedback
+            }
           })
           .catch(err => console.error("❌ Error en evaluación debug:", err));
       });
-
     }
   }
 });

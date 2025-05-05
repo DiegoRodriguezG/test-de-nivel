@@ -130,38 +130,57 @@ export function mostrarVistaFeedback(result) {
     }
   }
 
+  const paso7 = document.getElementById("paso-7");
+  if (paso7) {
+    paso7.classList.remove("card");
+    paso7.classList.add("card-feedback", "d-flex", "flex-column");
+  }
+
   const container = document.getElementById("feedback-render");
   if (!container) return;
 
   const nombreUsuario = JSON.parse(localStorage.getItem("usuario") || "{}").nombre || "el candidato";
+  const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
+
   const nivel = result.nivel || "Desconocido";
-  const observaciones = result.observaciones || [];
+  const mensaje = result.mensaje || "";
+  const fortalezas = result.observaciones
+    ? result.observaciones.filter(o => o.tipo === "fortaleza").map(o => o.texto)
+    : [];
 
-  const iconoPorTipo = {
-    fortaleza: 'fas fa-check-circle text-success',
-    mejora: 'fas fa-exclamation-triangle text-warning'
-  };
+  const consejos = result.observaciones
+    ? result.observaciones.filter(o => o.tipo === "consejo").map(o => o.texto)
+    : [];
 
-  const bullets = observaciones.map(obs => `
-    <li class="observacion-item">
-      <i class="${iconoPorTipo[obs.tipo] || 'fas fa-info-circle text-muted'} me-2"></i>
-      ${obs.texto}
-    </li>
-  `).join('');
+  const renderFortalezas = (items) =>
+    items.map(texto => `<li class="observacion-item">
+      <i class="fas fa-check-circle text-success me-2"></i>${texto}
+    </li>`).join("");
+
+  const renderConsejos = (items) =>
+    items.map(texto => `<li class="observacion-item">
+      <i class="fas fa-lightbulb text-warning me-2"></i>${texto}
+    </li>`).join("");
 
   container.innerHTML = `
-    <div class="container py-4 px-3" id="feedback-render">
+    <div class="container py-4 px-3">
       <h2 class="text-center mb-2">¡Buen trabajo, ${nombreUsuario}! 🎉</h2>
-      <div class="text-center display-3 fw-bold text-primary">${nivel}</div>
-      <div class="text-center text-muted mb-4">Tu nivel de inglés estimado</div>
 
-      <ul class="lista-observaciones mb-4 text-muted">
-        ${bullets}
+      ${!esEstudiante
+        ? `<div class="text-center display-3 fw-bold text-primary">${nivel}</div>
+           <div class="text-center text-muted mb-4">Tu nivel de inglés estimado</div>`
+        : `<div class="text-center text-muted mb-4 fst-italic">${mensaje}</div>`}
+      <h5 class="mt-3">Fortalezas</h5>
+      <ul class="lista-observaciones mb-4 text-muted small">
+        ${renderFortalezas(fortalezas)}
       </ul>
+      <h5>Consejos para mejorar</h5>
+      <ul class="lista-observaciones text-muted small">
+        ${renderConsejos(consejos)}
+      </ul> 
     </div>
   `;
 }
-
 
 // =======================
 // Texto de ayuda según estado

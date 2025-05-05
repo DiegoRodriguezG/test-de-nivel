@@ -17,11 +17,12 @@ CHAR_LIMIT = 3000  # Límite de caracteres por prompt
 
 # 👇 Modelo estructurado para respuesta de evaluación
 class Observacion(BaseModel):
-    tipo: str  # "fortaleza" o "mejora"
+    tipo: str  # "fortaleza" o "consejo"
     texto: str
 
 class EvaluacionFinal(BaseModel):
     nivel: str
+    mensaje: str
     observaciones: list[Observacion]
 
 @app.route("/")
@@ -169,16 +170,17 @@ def evaluate():
                 "role": "system",
                 "content": (
                     "Eres un evaluador profesional de nivel de inglés. Basado en el historial completo de conversación entre un candidato y una entrevistadora, "
-                    "entrega una evaluación estructurada en español, usando solo una lista de observaciones. Háblale directo al candidato. Cada observación debe ser breve, amable, útil y con ejemplos concretos.\n\n"
-                    "Usa este formato JSON:\n"
+                    "entrega una evaluación estructurada en español, usando solo un mensaje de aliento/resumen y una lista de observaciones. Háblale directo al candidato. Cada observación debe ser breve, amable, útil y con ejemplos concretos de la conversación.\n\n"
+                    "Usa este formato JSON de ejemplo:\n"
                     "{\n"
                     "  \"nivel\": \"B1 - Intermedio\",\n"
+                    "  \"mensaje\": \"Tu nivel te permite comunicarte con confianza en la mayoría de contextos laborales.\",\n"
                     "  \"observaciones\": [\n"
-                    "    { \"tipo\": \"fortaleza\", \"texto\": \"Habla con confianza y usa conectores con naturalidad.\" },\n"
-                    "    { \"tipo\": \"mejora\", \"texto\": \"Comete errores con los tiempos verbales pasados.\" }\n"
+                    "    { \"tipo\": \"fortaleza\", \"texto\": \"Mantuviste fluidez al responder preguntas abiertas y sin usar muletillas.\" },\n"
+                    "    { \"tipo\": \"consejo\", \"texto\": \"Practica tiempos verbales en pasado como ‘I used to...’ o ‘I struggled with...’\" }\n"
                     "  ]\n"
                     "}\n\n"
-                    "Usa un tono amable y profesional. Exactamente 2 fortalezas y 2 mejoras, en orden. Max 150 car. cada una. No incluyas explicaciones fuera del JSON."
+                    "Usa un tono amable y profesional. Exactamente 2 fortalezas y 2 consejos, en orden. Max 150 car. cada una. No incluyas explicaciones fuera del JSON."
                 )
             },
             {

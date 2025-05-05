@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/TU_PORTAL_ID.js"></script>
 </head>
 <body class="bg-light">
 
@@ -140,20 +141,33 @@
             <audio id="respuesta-audio" autoplay hidden></audio>
           </div>
 
-          <!-- Paso 6: Email y país -->
+           <!-- Paso 6: Formulario contacto para NO estudiantes -->
           <div id="paso-6" class="d-none flex-column h-100 p-4">
-            <h5 class="mb-3 text-center">¿Dónde te enviamos tus resultados?</h5>
-            <div class="mb-3">
-              <label for="input-email" class="form-label">Correo electrónico</label>
-              <input type="email" class="form-control" id="input-email" placeholder="tucorreo@example.com" />
-            </div>
-            <div class="mb-3">
-              <label for="input-pais" class="form-label">País</label>
-              <input type="text" class="form-control" id="input-pais" placeholder="Chile" />
-            </div>
-            <div class="d-flex justify-content-end mt-auto">
-              <button id="btn-enviar-resultados" class="btn btn-primary">Recibir resultados</button>
-            </div>
+            <h5 class="mb-3 text-center">¿Quieres recibir tus resultados por correo?</h5>
+            <p class="text-muted text-center mb-4">Déjanos tus datos y te los enviaremos al email.</p>
+
+            <form id="form-contacto">
+              <div class="mb-3">
+                <label for="input-contacto-nombre" class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="input-contacto-nombre" name="firstname" required />
+              </div>
+              <div class="mb-3">
+                <label for="input-contacto-apellido" class="form-label">Apellido</label>
+                <input type="text" class="form-control" id="input-contacto-apellido" name="lastname" required />
+              </div>
+              <div class="mb-3">
+                <label for="input-contacto-email" class="form-label">Correo electrónico</label>
+                <input type="email" class="form-control" id="input-contacto-email" name="email" required />
+              </div>
+              <div class="mb-3">
+                <label for="input-pais" class="form-label">País</label>
+                <input type="text" class="form-control" id="input-pais" name="country" required />
+              </div>
+              <div id="error-contacto" class="alert alert-danger d-none" role="alert"></div>
+              <div class="d-flex justify-content-end mt-auto">
+                <button type="submit" class="btn btn-success">Ver resultados</button>
+              </div>
+            </form>
           </div>
 
           <!-- Paso 7: Feedback final -->
