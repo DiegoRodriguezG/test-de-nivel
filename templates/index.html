@@ -1,10 +1,207 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Chat de Voz</title></head>
-<body>
-  <button id="start">🎤 Hablar</button>
-  <div id="chat"></div>
-  <audio id="respuesta-audio" autoplay></audio>
-  <script src="/static/main.js"></script>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simulador de entrevistas en inglés</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Estilos personalizados -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body class="bg-light">
+
+  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center px-3">
+    <div class="row w-100 align-items-start justify-content-center g-4">
+
+      <!-- Columna del logo -->
+      <div class="col-12 col-md-3 d-flex col-logo">
+        <div class="d-flex flex-column justify-content-start w-100">
+          <img src="{{ url_for('static', filename='logo-poliglota.svg') }}" alt="Poliglota" id="logo-poliglota" class="img-fluid" />
+        </div>
+      </div>
+
+      <!-- Columna de la app -->
+      <div class="col-12 col-md-6 d-flex align-items-center justify-content-center col-app">
+        <div class="card shadow-sm d-flex flex-column" id="pantallas">
+
+          <!-- Progreso pasos preparación -->
+          <div class="px-3 pt-3" id="barra-progreso-contenedor" style="display: none;">
+            <div id="texto-progreso" class="mb-1 text-end small text-muted">Paso 1 de 3</div>
+            <div class="w-100 bg-light rounded" style="height: 6px; overflow: hidden;">
+              <div id="barra-progreso" style="height: 100%; width: 0%; background: linear-gradient(to right, #00c48c, #00b8a9); transition: width 0.4s ease;"></div>
+            </div>
+          </div>
+
+          <!-- Paso 1: Bienvenida -->
+          <div id="paso-1" class="d-flex flex-column h-100 p-4 align-items-center justify-content-center text-center">
+            <img src="/static/anastasia.webp" alt="Bienvenida" class="mb-4" />
+            <h2 class="mb-3">Practica tu entrevista en inglés</h2>
+            <p class="mb-4 text-muted" style="max-width: 400px;">
+              Conversa con nuestra IA y recibe feedback personalizado.
+            </p>
+            <button id="empezar-btn" class="btn btn-primary px-4 py-2">Comenzar</button>
+          </div>
+
+          <!-- Paso 2: Nombre -->
+          <div id="paso-2" class="d-none flex-column h-100 p-4">
+            <h5 class="mb-3 text-center">¿Cuál es tu nombre?</h5>
+            <input type="text" class="form-control mb-4" id="input-nombre" placeholder="Ej: Elena" />
+            <div class="d-flex justify-content-between mt-auto">
+              <button id="btn-atras-a-paso-1" class="btn btn-secondary">Atrás</button>
+              <button id="btn-siguiente-a-paso-3" class="btn btn-primary">Siguiente</button>
+            </div>
+          </div>
+
+          <!-- Paso 3: Cargo -->
+          <div id="paso-3" class="d-none flex-column h-100 p-4">
+            <h5 class="mb-3 text-center">¿A qué cargo te gustaría postular?</h5>
+            <p class="text-muted text-center mb-4">Escríbelo o selecciona uno de la lista.</p>
+            <input type="text" class="form-control mb-2" id="input-cargo" placeholder="Ej: Veterinaria" list="cargos-sugeridos" />
+            <datalist id="cargos-sugeridos"></datalist>
+            <div id="pills-cargo" class="d-flex flex-wrap mb-4"></div>
+            <div class="d-flex justify-content-between mt-auto">
+              <button id="btn-atras-a-paso-2" class="btn btn-secondary">Atrás</button>
+              <button id="btn-siguiente-a-paso-4" class="btn btn-primary">Siguiente</button>
+            </div>
+          </div>
+
+          <!-- Paso 4: Nivel de inglés -->
+          <div id="paso-4" class="d-none flex-column h-100 p-4">
+            <h5 class="mb-3 text-center">¿Cuál es tu nivel de Inglés?</h5>
+            <p class="text-muted text-center mb-4">Ajustaremos tu entrevista según tu nivel.</p>
+            <div class="d-flex flex-column gap-2">
+              <div class="nivel-btn p-3 border rounded nivel-option" data-nivel="bajo">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="nivel-icon">
+                    <div class="barra barra-corta"></div>
+                    <div class="barra barra-mediana"></div>
+                    <div class="barra barra-larga"></div>
+                  </div>
+                  <span>Conozco algunas palabras y frases</span>
+                </div>
+              </div>
+              <div class="nivel-btn p-3 border rounded nivel-option" data-nivel="medio">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="nivel-icon">
+                    <div class="barra barra-corta"></div>
+                    <div class="barra barra-mediana"></div>
+                    <div class="barra barra-larga"></div>
+                  </div>
+                  <span>Puedo mantener conversaciones básicas</span>
+                </div>
+              </div>
+              <div class="nivel-btn p-3 border rounded nivel-option" data-nivel="alto">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="nivel-icon">
+                    <div class="barra barra-corta"></div>
+                    <div class="barra barra-mediana"></div>
+                    <div class="barra barra-larga"></div>
+                  </div>
+                  <span>Puedo discutir temas complejos</span>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between mt-auto">
+              <button id="btn-atras-a-paso-3" class="btn btn-secondary">Atrás</button>
+              <button id="btn-comenzar-entrevista" class="btn btn-success">Comenzar entrevista</button>
+            </div>
+          </div>
+
+          <!-- Paso 5: Chat -->
+          <div id="paso-5" class="d-none flex-column h-100">
+            <div id="contenedor-avatar" class="text-center"></div>
+            <!-- Barra de feedback informativo -->
+            <div class="px-3 pt-2" id="barra-feedback-contenedor">
+              <div class="w-100 bg-light rounded" style="height: 6px; overflow: hidden;">
+                <div id="barra-feedback" style="height: 100%; width: 0%; background: linear-gradient(to right, #00c48c, #00b8a9); transition: width 0.4s ease;"></div>
+              </div>
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Progreso</span>
+                <span id="texto-feedback">0%</span>
+              </div>
+            </div>
+            <div id="chat" class="card-body overflow-auto" style="flex-grow: 1; padding: 15px;"></div>
+            <div id="estado-indicador" class="estado-indicador d-none small fw-light fst-italic">Estado</div>
+            <div class="card-footer bg-white border-top d-flex justify-content-around align-items-center py-2">
+              <button class="btn btn-secondary btn-circular" id="mic-btn">
+                <i id="mic-icon" class="fas fa-microphone"></i>
+              </button>
+              <div id="estado-icono" class="fs-5 text-primary">
+                <i class="fas fa-circle-notch fa-spin"></i>
+              </div>
+              <button class="btn btn-danger btn-circular" id="end-btn">
+                <i class="fas fa-phone-slash"></i>
+              </button>
+            </div>
+            <audio id="respuesta-audio" autoplay hidden></audio>
+          </div>
+
+          <!-- Paso 6: Email y país -->
+          <div id="paso-6" class="d-none flex-column h-100 p-4">
+            <h5 class="mb-3 text-center">¿Dónde te enviamos tus resultados?</h5>
+            <div class="mb-3">
+              <label for="input-email" class="form-label">Correo electrónico</label>
+              <input type="email" class="form-control" id="input-email" placeholder="tucorreo@example.com" />
+            </div>
+            <div class="mb-3">
+              <label for="input-pais" class="form-label">País</label>
+              <input type="text" class="form-control" id="input-pais" placeholder="Chile" />
+            </div>
+            <div class="d-flex justify-content-end mt-auto">
+              <button id="btn-enviar-resultados" class="btn btn-primary">Recibir resultados</button>
+            </div>
+          </div>
+
+          <!-- Paso 7: Feedback final -->
+          <div id="paso-7" class="d-none flex-column align-items-center">
+            <div id="feedback-render" class="w-100"></div>
+            <div class="text-center mt-4">
+              <button class="btn btn-primary" id="btn-try-again">Volver a comenzar</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="col-12 col-md-3 d-none d-md-block">
+        <!-- Columna vacía para equilibrar (invisible en mobile) -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación -->
+  <div class="modal fade" id="modalConfirmarTerminar" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalLabel">Confirmar</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          ¿Estás seguro que deseas terminar la entrevista? Se perderá tu progreso.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button id="btnConfirmarTerminar" type="button" class="btn btn-danger">Sí, terminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔧 Botón oculto de debug -->
+  <button id="btn-debug-eval" class="position-fixed bottom-0 end-0 m-3 btn btn-sm btn-outline-secondary d-none">
+    Debug Evaluación
+  </button>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    window.RUTA_CARGOS = "{{ url_for('static', filename='cargos.json') }}";
+  </script>
+  <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
+
 </body>
 </html>
