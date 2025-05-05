@@ -15,6 +15,12 @@
   --texto-secundario: #555;
 }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 /* ==== GLOBAL ==== */
 body {
   font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
@@ -368,7 +374,7 @@ input.form-control:focus {
 #pantallas {
   width: 100%;
   max-width: 390px;
-  height: 90vh;
+  height: 90dvh;
   display: flex;
   flex-direction: column;
   border-radius: 20px;
@@ -377,6 +383,7 @@ input.form-control:focus {
   overflow: hidden;
   backdrop-filter: blur(5px);
 }
+
 
 #logo-poliglota {
   max-height: 64px;
@@ -390,8 +397,8 @@ input.form-control:focus {
     margin: 0 auto !important;
   }
 
-  #pantallas{
-      height: 90vh;
+  #pantallas {
+    height: 90dvh;
   }
 
   .col-app{

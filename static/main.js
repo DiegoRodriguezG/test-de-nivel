@@ -289,16 +289,39 @@ function cargarAvatarSVG() {
 function detectarCompatibilidadGrabacion() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isChrome = /CriOS/.test(navigator.userAgent);
+  const isChromeIOS = /(CriOS|Chrome\/)/.test(navigator.userAgent);
+  const soportaMediaRecorder = typeof MediaRecorder !== "undefined";
+  const soportaGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+  // 🚫 Navegadores no compatibles
+  if (!soportaMediaRecorder || !soportaGetUserMedia) {
+    alert("Tu navegador no soporta grabación de audio. Usa Chrome (iOS 16.4+ o Android) o un navegador de escritorio con permisos activados.");
+    return;
+  }
+
+  // 🚫 Safari en iOS no soporta MediaRecorder (aunque tenga getUserMedia)
+  if (isIOS && isSafari) {
+    alert("Safari no permite grabación de audio. Por favor usa Chrome o Firefox.");
+    return;
+  }
+
+  // 🚫 Chrome en iOS requiere versión >= 16.4
   const iOSVersionMatch = navigator.userAgent.match(/OS (\d+)_/);
   const iOSVersion = iOSVersionMatch ? parseInt(iOSVersionMatch[1]) : null;
+  if (isIOS && isChromeIOS && iOSVersion && iOSVersion < 16) {
+    alert("Tu versión de iOS no permite grabar en Chrome. Actualiza a iOS 16.4 o superior.");
+    return;
+  }
 
-  if (!window.MediaRecorder || (isIOS && !isChrome)) {
-    alert("Tu navegador no soporta grabación de audio. Usa Chrome (iOS 16.4+ o Android) o un navegador de escritorio.");
-  } else if (isChrome && isIOS && iOSVersion && iOSVersion < 16) {
-    alert("Tu versión de iOS no soporta grabación en Chrome. Actualiza a iOS 16.4 o superior.");
-  } else if (isSafari) {
-    alert("Safari no soporta grabación de audio. Usa Chrome o Firefox.");
+  // 🔒 Verifica permisos de micrófono
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: "microphone" }).then(permissionStatus => {
+      if (permissionStatus.state === "denied") {
+        alert("El acceso al micrófono está bloqueado. Ve a Configuración > Chrome > Micrófono para activarlo.");
+      }
+    }).catch(() => {
+      console.warn("No se pudo verificar el permiso del micrófono.");
+    });
   }
 }
 
