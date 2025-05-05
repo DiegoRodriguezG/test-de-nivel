@@ -287,9 +287,13 @@ function cargarAvatarSVG() {
 }
 
 function detectarCompatibilidadGrabacion() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isChromeIOS = /(CriOS|Chrome\/)/.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isChromeIOS = /CriOS/.test(ua);
+  const isFirefoxIOS = /FxiOS/.test(ua);
+  const isSafari = isIOS && !isChromeIOS && !isFirefoxIOS && /Safari/.test(ua);
+
   const soportaMediaRecorder = typeof MediaRecorder !== "undefined";
   const soportaGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
@@ -299,22 +303,24 @@ function detectarCompatibilidadGrabacion() {
     return;
   }
 
-  // 🚫 Safari en iOS no soporta MediaRecorder (aunque tenga getUserMedia)
-  if (isIOS && isSafari) {
-    alert("Safari no permite grabación de audio. Por favor usa Chrome o Firefox.");
+  // 🚫 Safari real en iOS no es compatible
+  if (isSafari) {
+    alert("Safari no permite grabación de audio. Por favor usa Chrome o Firefox en iOS.");
     return;
   }
 
-  // 🚫 Chrome en iOS requiere versión >= 16.4
-  const iOSVersionMatch = navigator.userAgent.match(/OS (\d+)_/);
-  const iOSVersion = iOSVersionMatch ? parseInt(iOSVersionMatch[1]) : null;
-  if (isIOS && isChromeIOS && iOSVersion && iOSVersion < 16) {
-    alert("Tu versión de iOS no permite grabar en Chrome. Actualiza a iOS 16.4 o superior.");
-    return;
+  // 🚫 Chrome iOS requiere versión >= 16.4
+  if (isIOS && isChromeIOS) {
+    const versionMatch = ua.match(/OS (\d+)_/);
+    const iOSVersion = versionMatch ? parseInt(versionMatch[1]) : null;
+    if (iOSVersion && iOSVersion < 16) {
+      alert("Tu versión de iOS no permite grabar en Chrome. Actualiza a iOS 16.4 o superior.");
+      return;
+    }
   }
 
-  // 🔒 Verifica permisos de micrófono
-  if (navigator.permissions) {
+  // 🔒 Verifica permisos del micrófono
+  if (navigator.permissions && navigator.permissions.query) {
     navigator.permissions.query({ name: "microphone" }).then(permissionStatus => {
       if (permissionStatus.state === "denied") {
         alert("El acceso al micrófono está bloqueado. Ve a Configuración > Chrome > Micrófono para activarlo.");
