@@ -189,16 +189,15 @@ def evaluate():
             }
         ]
 
-        # 🧠 Llamada a Structured Output usando parse
-        completion = client.beta.chat.completions.parse(
+        completion = client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,
-            response_format=EvaluacionFinal,
+            messages=messages
         )
 
-        parsed = completion.choices[0].message.parsed
+        raw_content = completion.choices[0].message.content
+        parsed_dict = json.loads(raw_content)
+        parsed = EvaluacionFinal.model_validate(parsed_dict)
 
-        print("✅ Evaluación generada:", parsed)
         return jsonify(parsed.dict())
 
     except Exception as e:
