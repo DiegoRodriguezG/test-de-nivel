@@ -135,7 +135,11 @@ function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
       .then(result => {
         localStorage.setItem("evaluacionFinal", "true");
         localStorage.setItem("feedbackResultado", JSON.stringify(result));
-        mostrarVistaFeedback(result);
+
+        const evento = new CustomEvent("evaluacionCompletada", {
+          detail: { result }
+        });
+        window.dispatchEvent(evento);
       })
       .catch(err => console.error("❌ Error en evaluación final:", err));
   });

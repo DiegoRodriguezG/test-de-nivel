@@ -54,6 +54,17 @@ window.onload = () => {
     return;
   }
 
+  window.addEventListener("evaluacionCompletada", (e) => {
+    const result = e.detail.result;
+    const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
+
+    if (esEstudiante) {
+      mostrarVistaFeedback(result);
+    } else {
+      mostrarPaso(6);
+    }
+  });
+
   if (usuarioGuardado && historialGuardado) {
     const usuarioParsed = JSON.parse(usuarioGuardado);
     usuario = usuarioParsed;
@@ -434,7 +445,7 @@ window.addEventListener("DOMContentLoaded", () => {
             if (esEstudiante) {
               import("./ui.js").then(mod => mod.mostrarVistaFeedback(data));
             } else {
-              // Muestra paso 6.5
+              // Muestra paso 6
               mostrarPaso(6); // <-- 6 es el formulario antes del feedback
             }
           })
