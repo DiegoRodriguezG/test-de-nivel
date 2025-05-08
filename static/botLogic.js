@@ -139,6 +139,7 @@ function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
         const evento = new CustomEvent("evaluacionCompletada", {
           detail: { result }
         });
+        console.log("🚀 Dispatching evento evaluacionCompletada");
         window.dispatchEvent(evento);
       })
       .catch(err => console.error("❌ Error en evaluación final:", err));

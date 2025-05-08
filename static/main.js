@@ -54,17 +54,6 @@ window.onload = () => {
     return;
   }
 
-  window.addEventListener("evaluacionCompletada", (e) => {
-    const result = e.detail.result;
-    const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
-
-    if (esEstudiante) {
-      mostrarVistaFeedback(result);
-    } else {
-      mostrarPaso(6);
-    }
-  });
-
   if (usuarioGuardado && historialGuardado) {
     const usuarioParsed = JSON.parse(usuarioGuardado);
     usuario = usuarioParsed;
@@ -452,5 +441,16 @@ window.addEventListener("DOMContentLoaded", () => {
           .catch(err => console.error("❌ Error en evaluación debug:", err));
       });
     }
+  }
+});
+
+window.addEventListener("evaluacionCompletada", (e) => {
+  const result = e.detail.result;
+  const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
+
+  if (esEstudiante) {
+    mostrarVistaFeedback(result);
+  } else {
+    mostrarPaso(6);
   }
 });
