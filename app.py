@@ -161,9 +161,17 @@ def tts():
 
 @app.route("/evaluate", methods=["POST"])
 def evaluate():
+    print("🛬 Recibido POST /evaluate")
+    raw = request.data
+    print("📦 Raw body recibido:", raw)
+
     try:
         data = request.json
-        print("📊 Recibiendo historial para evaluación final...")
+
+        print("✅ JSON decodificado:", data)
+
+        historial = data.get("historial", [])
+        print("🧠 Historial decodificado:", historial)
 
         messages = [
             {

@@ -129,7 +129,8 @@ function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
     fetch("/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ historial: historialConversacion })
+      console.log(historialConversacion);
+      console.log("✔️ JSON serializado:", JSON.stringify({ historial: historialConversacion }));
     })
       .then(res => res.json())
       .then(result => {
