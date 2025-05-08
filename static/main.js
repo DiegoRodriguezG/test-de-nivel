@@ -381,7 +381,7 @@ function detectarCompatibilidadGrabacion() {
 
 // 🔧 Habilitar botón de debug en local
 window.addEventListener("DOMContentLoaded", () => {
-  if (location.hostname === "localhost") {
+  //if (location.hostname === "localhost") {
     const btn = document.getElementById("btn-debug-eval");
     if (btn) {
       btn.classList.remove("d-none");
@@ -441,7 +441,7 @@ window.addEventListener("DOMContentLoaded", () => {
           .catch(err => console.error("❌ Error en evaluación debug:", err));
       });
     }
-  }
+  //}
 });
 
 window.addEventListener("evaluacionCompletada", (e) => {
