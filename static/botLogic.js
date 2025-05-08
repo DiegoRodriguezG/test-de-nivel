@@ -126,10 +126,6 @@ function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
   reproducirTextoYAnimar(mensajeFinal, perfilUsuario, historialConversacion, () => {
     setEstado("sistema", "procesando-feedback");
 
-    console.log("📤 Enviando historial a /evaluate:");
-    console.log(historialConversacion);
-    console.log("✔️ JSON serializado:", JSON.stringify({ historial: historialConversacion }));
-
     fetch("/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -143,9 +139,9 @@ function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
         const evento = new CustomEvent("evaluacionCompletada", {
           detail: { result }
         });
-        console.log("🚀 Dispatching evento evaluacionCompletada");
         window.dispatchEvent(evento);
       })
+
       .catch(err => console.error("❌ Error en evaluación final:", err));
   });
 }

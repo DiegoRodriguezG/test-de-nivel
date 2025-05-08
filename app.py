@@ -161,17 +161,9 @@ def tts():
 
 @app.route("/evaluate", methods=["POST"])
 def evaluate():
-    print("🛬 Recibido POST /evaluate")
-    raw = request.data
-    print("📦 Raw body recibido:", raw)
-
     try:
         data = request.json
-
-        print("✅ JSON decodificado:", data)
-
-        historial = data.get("historial", [])
-        print("🧠 Historial decodificado:", historial)
+        print("📊 Recibiendo historial para evaluación final...")
 
         messages = [
             {
@@ -197,14 +189,13 @@ def evaluate():
             }
         ]
 
-        completion = client.chat.completions.create(
+        completion = client.beta.chat.completions.parse(
             model="gpt-4o",
-            messages=messages
+            messages=messages,
+            response_format=EvaluacionFinal,
         )
 
-        raw_content = completion.choices[0].message.content
-        parsed_dict = json.loads(raw_content)
-        parsed = EvaluacionFinal.model_validate(parsed_dict)
+        parsed = completion.choices[0].message.parsed
 
         return jsonify(parsed.dict())
 
