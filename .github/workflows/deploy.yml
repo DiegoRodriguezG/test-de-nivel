@@ -1,0 +1,116 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: test-de-nivel
+  SERVICE_NAME: test-de-nivel
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Check if App Runner service exists
+      id: check-service
+      run: |
+        if aws apprunner list-services --region ${{ env.AWS_REGION }} | grep -q "${{ env.SERVICE_NAME }}"; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create App Runner service (if not exists)
+      if: steps.check-service.outputs.exists == 'false'
+      env:
+        IMAGE_URI: ${{ steps.build-image.outputs.image }}
+      run: |
+        aws apprunner create-service \
+          --service-name ${{ env.SERVICE_NAME }} \
+          --source-configuration "{
+            \"ImageRepository\": {
+              \"ImageIdentifier\": \"$IMAGE_URI\",
+              \"ImageConfiguration\": {
+                \"Port\": \"8000\",
+                \"RuntimeEnvironmentVariables\": {
+                  \"OPENAI_API_KEY\": \"${{ secrets.OPENAI_API_KEY }}\"
+                }
+              },
+              \"ImageRepositoryType\": \"ECR\"
+            },
+            \"AutoDeploymentsEnabled\": true,
+            \"AuthenticationConfiguration\": {
+              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRole\"
+            }
+          }" \
+          --instance-configuration "{
+            \"Cpu\": \"1 vCPU\",
+            \"Memory\": \"2 GB\"
+          }" \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Update App Runner service (if exists)
+      if: steps.check-service.outputs.exists == 'true'
+      env:
+        IMAGE_URI: ${{ steps.build-image.outputs.image }}
+      run: |
+        SERVICE_ARN=$(aws apprunner list-services --region ${{ env.AWS_REGION }} --query "ServiceSummaryList[?ServiceName=='${{ env.SERVICE_NAME }}'].ServiceArn" --output text)
+
+        aws apprunner update-service \
+          --service-arn $SERVICE_ARN \
+          --source-configuration "{
+            \"ImageRepository\": {
+              \"ImageIdentifier\": \"$IMAGE_URI\",
+              \"ImageConfiguration\": {
+                \"Port\": \"8000\",
+                \"RuntimeEnvironmentVariables\": {
+                  \"OPENAI_API_KEY\": \"${{ secrets.OPENAI_API_KEY }}\"
+                }
+              },
+              \"ImageRepositoryType\": \"ECR\"
+            },
+            \"AutoDeploymentsEnabled\": true,
+            \"AuthenticationConfiguration\": {
+              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRole\"
+            }
+          }" \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Get service URL
+      run: |
+        SERVICE_ARN=$(aws apprunner list-services --region ${{ env.AWS_REGION }} --query "ServiceSummaryList[?ServiceName=='${{ env.SERVICE_NAME }}'].ServiceArn" --output text)
+        SERVICE_URL=$(aws apprunner describe-service --service-arn $SERVICE_ARN --region ${{ env.AWS_REGION }} --query 'Service.ServiceUrl' --output text)
+        echo "🚀 Service deployed successfully!"
+        echo "📍 Service URL: https://$SERVICE_URL"
