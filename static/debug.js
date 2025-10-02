@@ -17,3 +17,12 @@ export function errorDev(...args) {
     console.error(...args);
   }
 }
+
+// Helper para construir URLs de API con el prefijo correcto
+export function apiUrl(path) {
+  // Obtener el base path desde el script actual
+  const scriptSrc = document.querySelector('script[src*="main.js"]')?.src || '';
+  const match = scriptSrc.match(/(.*?)\/static\//);
+  const basePath = match ? match[1] : '';
+  return basePath + path;
+}

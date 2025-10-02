@@ -2,7 +2,7 @@
 // 📁 botRender.js – Renderización de texto, animación y audio
 // =======================
 
-import { logDev, errorDev, warnDev } from './debug.js';
+import { logDev, errorDev, warnDev, apiUrl } from './debug.js';
 
 import {
   animateMouthViseme,
@@ -255,7 +255,7 @@ export function leerTextoEnVozAlta(texto, contenedorSpan, onEnd, soloAnimar = fa
     return;
   }
 
-  fetch("/tts", {
+  fetch(apiUrl("/tts"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: texto })

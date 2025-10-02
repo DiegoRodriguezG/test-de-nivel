@@ -2,7 +2,7 @@
 // 📁 audio.js – Manejo de grabación y detección de voz
 // =======================
 
-import { logDev, errorDev, warnDev } from './debug.js';
+import { logDev, errorDev, warnDev, apiUrl } from './debug.js';
 import { setEstado, getEstado } from './estado.js';
 import { resetearTemporizador } from './ui.js';
 
@@ -284,7 +284,7 @@ function configurarMediaRecorder(stream, onTranscript) {
 
     try {
       logDev("🎧 Tamaño del audio (bytes):", blob.size);
-      const res = await fetch("/transcribe", {
+      const res = await fetch(apiUrl("/transcribe"), {
         method: "POST",
         body: formData
       });

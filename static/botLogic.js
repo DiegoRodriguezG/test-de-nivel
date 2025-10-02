@@ -3,7 +3,7 @@
 // =======================
 
 // 🔗 Importaciones
-import { logDev, errorDev, warnDev } from './debug.js';
+import { logDev, errorDev, warnDev, apiUrl } from './debug.js';
 import { mostrarVistaFeedback } from './ui.js';
 import { reproducirTextoYAnimar } from './botRender.js';
 import { setEstado, getEstado } from './estado.js';
@@ -81,7 +81,7 @@ export function manejarTurnoDelUsuario(perfilUsuario, historialConversacion, men
 
   setEstado("sistema", "procesando-chat");
 
-  fetch("/chat", {
+  fetch(apiUrl("/chat"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: prompt })
@@ -178,7 +178,7 @@ function cerrarTestYDarFeedback(perfilUsuario, historialConversacion) {
     () => {
       setEstado("sistema", "procesando-feedback");
 
-      fetch("/evaluate", {
+      fetch(apiUrl("/evaluate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ historial: historialConversacion, evaluacion_cruda: historialEvaluacion})
