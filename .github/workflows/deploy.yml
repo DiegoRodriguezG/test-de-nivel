@@ -72,7 +72,7 @@ jobs:
             },
             \"AutoDeploymentsEnabled\": true,
             \"AuthenticationConfiguration\": {
-              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRole\"
+              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRoleFixed\"
             }
           }" \
           --instance-configuration "{
@@ -103,7 +103,7 @@ jobs:
             },
             \"AutoDeploymentsEnabled\": true,
             \"AuthenticationConfiguration\": {
-              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRole\"
+              \"AccessRoleArn\": \"arn:aws:iam::970698326368:role/AppRunnerECRAccessRoleFixed\"
             }
           }" \
           --region ${{ env.AWS_REGION }}
