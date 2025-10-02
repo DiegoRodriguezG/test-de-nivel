@@ -3,22 +3,42 @@
 // =======================
 
 // 🔗 Importaciones
+import { logDev, errorDev, warnDev } from './debug.js';
 import { mostrarVistaFeedback } from './ui.js';
 import { reproducirTextoYAnimar } from './botRender.js';
 import { setEstado, getEstado } from './estado.js';
+import { apagarTodoAudio } from './audio.js';
+import {
+  evaluarProgreso,
+  calcularW,
+  actualizarDistribucion,
+  deberiaFinalizarTest,
+  obtenerNivelDominante
+} from './evaluacion.js';
 
-// =======================
-// 🧠 Parámetros de evaluación
-// =======================
-const UMBRAL_RESPUESTAS_VALIDAS = 4;
-const UMBRAL_TOTAL_INFORMATIVO = 14;
+import { DESCRIPCIONES_TIPO, seleccionarTipoParaPrompt } from './selectorTipos.js';
 
 // =======================
 // 🔧 Estado interno de conversación
 // =======================
-let totalValorInformativo = 0;
-let cantidadRespuestasValidas = 0;
 let evaluacionFinalizada = false;
+let P_actual = { A1: 20, A2: 20, B1: 20, B2: 20, C1: 20 }; // distribución inicial uniforme
+let historialQ = [];
+let turnosUtiles = 0;
+let historialEvaluacion = [];
+
+function obtenerDistribucionInicial(nivelDeclarado) {
+  switch (nivelDeclarado?.toLowerCase()) {
+    case "bajo":
+      return { A1: 40, A2: 30, B1: 20, B2: 5, C1: 5 };
+    case "medio":
+      return { A1: 10, A2: 20, B1: 40, B2: 20, C1: 10 };
+    case "alto":
+      return { A1: 5, A2: 10, B1: 25, B2: 35, C1: 25 };
+    default:
+      return { A1: 20, A2: 20, B1: 20, B2: 20, C1: 20 }; // fallback
+  }
+}
 
 // =======================
 // 🗣️ Manejo de turnos del usuario
@@ -38,6 +58,11 @@ export function manejarTurnoDelUsuario(perfilUsuario, historialConversacion, men
     setEstado("primerTurno", false);
     localStorage.setItem("primerTurno", "false");
     
+    // 🔧 Inicializar P_actual según el nivel declarado por el usuario
+    const nivelDeclarado = perfilUsuario.nivel; // "bajo", "medio", "alto"
+    P_actual = obtenerDistribucionInicial(nivelDeclarado);
+    logDev("📌 Distribución inicial basada en nivel declarado:", P_actual);
+
     return;
   }
 
@@ -50,7 +75,10 @@ export function manejarTurnoDelUsuario(perfilUsuario, historialConversacion, men
 
   guardarHistorial(historialConversacion);
 
-  const prompt = construirPromptDelBot(perfilUsuario, historialConversacion, mensajeDelUsuario);
+  const tipo = seleccionarTipoParaPrompt(P_actual, historialConversacion);
+  logDev("📌 Tipo de pregunta seleccionada:", tipo);
+  const prompt = construirPromptDelBot(perfilUsuario, historialConversacion, mensajeDelUsuario, tipo);
+
   setEstado("sistema", "procesando-chat");
 
   fetch("/chat", {
@@ -59,104 +87,126 @@ export function manejarTurnoDelUsuario(perfilUsuario, historialConversacion, men
     body: JSON.stringify({ message: prompt })
   })
     .then(res => res.json())
-    .then(data => evaluarYProcesarRespuestaDelBot(data, perfilUsuario, historialConversacion))
-    .catch(err => console.error("❌ Error en conversación con el bot:", err));
+    .then(data => {
+      data.tipo = tipo; // 👈 inyectamos el tipo para guardarlo más adelante
+      evaluarYProcesarRespuestaDelBot(data, perfilUsuario, historialConversacion);
+    })
+    .catch(err => errorDev("❌ Error en conversación con el bot:", err));
 }
 
 function guardarHistorial(historial) {
   try {
     const serializado = JSON.stringify(historial, null, 2);
     localStorage.setItem("historial", serializado);
-    console.log("🧠 Historial actualizado:\n", serializado);
+    setEstado("historialConversacion", historial);
+    logDev("🧠 Historial actualizado:\n", serializado);
   } catch (err) {
-    console.error("❌ Error guardando historial:", err);
+    errorDev("❌ Error guardando historial:", err);
   }
 }
 
 // =======================
 // 📊 Evaluación y flujo de seguimiento
 // =======================
-
 function evaluarYProcesarRespuestaDelBot(data, perfilUsuario, historialConversacion) {
   const preguntaGenerada = data.reply;
-  const valorInformativo = data.info_value ?? 0;
+  const Q = data.Q ?? 0;
+  const P_nueva = data.P_nueva; // esperado: { A1: 10, A2: 20, ..., C1: 10 }
 
-  if (!preguntaGenerada) {
-    console.warn("⚠️ Respuesta vacía del bot.");
+  logDev("🧠 Respuesta del modelo:");
+  logDev("🔹 Pregunta generada:", preguntaGenerada);
+  logDev("🔹 Q (calidad):", Q);
+  logDev("🔹 P_nueva (nivel estimado por turno):", P_nueva);
+
+  if (!preguntaGenerada || !P_nueva) {
+    warnDev("⚠️ Faltan datos de respuesta del bot.");
     return;
   }
 
+  historialQ.push(Q);
+
+  P_actual = actualizarDistribucion(P_actual, P_nueva, Q);
+
+  historialEvaluacion.push({ P_nueva, Q }); // 👈 nuevo registro
+
+  if (Q >= 0.5) {
+    turnosUtiles++;
+    logDev("✅ Turno útil registrado. Total:", turnosUtiles);
+  }
+
+  const progreso = evaluarProgreso(turnosUtiles);
+  actualizarBarraDeProgreso(progreso);
+
   if (!evaluacionFinalizada) {
-    historialConversacion.push({ pregunta: preguntaGenerada });
+    historialConversacion.push({
+      pregunta: preguntaGenerada,
+      tipo: data.tipo,
+      Q: Q,
+      P_nueva: P_nueva
+    });
     guardarHistorial(historialConversacion);
+    logDev("📊 P_actual (distribución acumulada actualizada):", P_actual);
   }
 
-  if (valorInformativo >= 3) {
-    totalValorInformativo += valorInformativo;
-    cantidadRespuestasValidas++;
+  logDev("⏳ Evaluando fin anticipado...");
+  logDev("  - Turnos útiles:", turnosUtiles);
+  logDev("  - Nivel dominante actual:", obtenerNivelDominante(P_actual));
+  logDev("  - Historial Q:", historialQ.join(", "));
 
-    localStorage.setItem("valorInformativo", totalValorInformativo);
-    localStorage.setItem("respuestasValidas", cantidadRespuestasValidas);
-  }
-
-  actualizarBarraDeProgreso();
-
-  if (!evaluacionFinalizada && cumpleCondicionesDeEvaluacion()) {
+  if (!evaluacionFinalizada && deberiaFinalizarTest(P_actual, historialQ, turnosUtiles)) {
     evaluacionFinalizada = true;
     localStorage.setItem("evaluacionFinal", "true");
-
-    cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion);
+    cerrarTestYDarFeedback(perfilUsuario, historialConversacion);
+    logDev("🛑 Test finalizado por early stop");
   } else {
     setEstado("sistema", "reproduciendo-texto");
     reproducirTextoYAnimar(preguntaGenerada, perfilUsuario, historialConversacion);
   }
 }
 
-function cumpleCondicionesDeEvaluacion() {
-  return (
-    cantidadRespuestasValidas >= UMBRAL_RESPUESTAS_VALIDAS &&
-    totalValorInformativo >= UMBRAL_TOTAL_INFORMATIVO
-  );
-}
+function cerrarTestYDarFeedback(perfilUsuario, historialConversacion) {
+  apagarTodoAudio(); // cortar todo antes de que el bot hable
+  setEstado("micMuted", true); // fuerza muteo para bloquear escucha
 
-function cerrarEntrevistaYEvaluarUsuario(perfilUsuario, historialConversacion) {
   const mensajeFinal = obtenerMensajeCierre(perfilUsuario);
   setEstado("sistema", "reproduciendo-texto");
 
-  reproducirTextoYAnimar(mensajeFinal, perfilUsuario, historialConversacion, () => {
-    setEstado("sistema", "procesando-feedback");
+  reproducirTextoYAnimar(
+    mensajeFinal,
+    perfilUsuario,
+    historialConversacion,
+    () => {
+      setEstado("sistema", "procesando-feedback");
 
-    fetch("/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ historial: historialConversacion })
-    })
-      .then(res => res.json())
-      .then(result => {
-        localStorage.setItem("evaluacionFinal", "true");
-        localStorage.setItem("feedbackResultado", JSON.stringify(result));
-
-        const evento = new CustomEvent("evaluacionCompletada", {
-          detail: { result }
-        });
-        window.dispatchEvent(evento);
+      fetch("/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ historial: historialConversacion, evaluacion_cruda: historialEvaluacion})
       })
+        .then(res => res.json())
+        .then(result => {
+          localStorage.setItem("evaluacionFinal", "true");
+          localStorage.setItem("feedbackResultado", JSON.stringify(result));
+          localStorage.setItem("evaluacionCruda", JSON.stringify(historialEvaluacion));
 
-      .catch(err => console.error("❌ Error en evaluación final:", err));
-  });
+          const evento = new CustomEvent("evaluacionCompletada", {
+            detail: { result }
+          });
+          window.dispatchEvent(evento);
+        })
+        .catch(err => errorDev("❌ Error en evaluación final:", err));
+    },
+    true // <-- este es el cambio CLAVE: skipListening = true
+  );
 }
 
 // =======================
 // 📈 Progreso visual
 // =======================
 
-function actualizarBarraDeProgreso() {
-  const porcentaje = Math.min(
-    100,
-    Math.round((totalValorInformativo / UMBRAL_TOTAL_INFORMATIVO) * 100)
-  );
-  document.getElementById("barra-feedback").style.width = `${porcentaje}%`;
-  document.getElementById("texto-feedback").textContent = `${porcentaje}%`;
+function actualizarBarraDeProgreso(progreso) {
+  document.getElementById("barra-feedback").style.width = `${progreso}%`;
+  document.getElementById("texto-feedback").textContent = `${progreso}%`;
 }
 
 // =======================
@@ -164,73 +214,57 @@ function actualizarBarraDeProgreso() {
 // =======================
 
 function obtenerMensajeSaludo(usuario) {
-  return usuario.nivel === "bajo"
-    ? `Hola ${usuario.nombre}, te doy la bienvenida a esta entrevista para el cargo de ${usuario.cargo}. Soy Anastasia y te acompañaré el día de hoy. Esta entrevista será en inglés ¿Todo listo para comenzar?`
-    : `Hola ${usuario.nombre}, te doy la bienvenida a esta entrevista para el cargo de ${usuario.cargo}. Soy Anastasia y te acompañaré el día de hoy. This interview will be in English. Are you ready to begin?`
+  return `Hola ${usuario.nombre}, te doy la bienvenida. Vamos a conversar en ${usuario.idioma} sobre "${usuario.situacion}" para estimar tu nivel de idioma. ¿Listo para empezar?`;
 }
 
 function obtenerMensajeCierre(usuario) {
   return `Thank you, ${usuario.nombre}. I have enough information to give you feedback on your English level. Let me analyze your performance.`;
 }
 
-export function construirPromptDelBot(perfilUsuario, historialConversacion, mensajeDelUsuario) {
-  const ultimas = historialConversacion
-    .slice(-4)
+export function construirPromptDelBot(perfilUsuario, historialConversacion, mensajeDelUsuario, tipo) {
+  const nivelTarget = obtenerNivelDominante(P_actual);
+  const { nombre, idioma, situacion, nivel: nivelEstimado } = perfilUsuario;
+  const tipoInfo = DESCRIPCIONES_TIPO[tipo] || { descripcion: "pregunta útil para evaluar el idioma", ejemplo: "" };
+
+  const contexto = historialConversacion
+    .slice(-3)
     .map(item => {
-      const q = item.pregunta ? `Q: ${item.pregunta}` : "";
-      const a = item.respuesta ? `A: ${item.respuesta}` : "";
-      return `${q}
-${a}`.trim();
+      const q = item.pregunta ? `Bot: ${item.pregunta}` : "";
+      const a = item.respuesta ? `Usuario: ${item.respuesta}` : "";
+      return [q, a].filter(Boolean).join("\n");
     })
-    .filter(Boolean)
     .join("\n\n");
 
   return `
-You are Anastasia, a professional and friendly interviewer simulating a job interview in English for the role of ${perfilUsuario.cargo}. The candidate is ${perfilUsuario.nombre} and their English level is ${perfilUsuario.nivel}.
+  [Parámetros del turno]
+  - Idioma objetivo para hablar y preguntar: ${idioma}
+  - Idioma nativo del usuario: español
+  - Tema / situación: "${situacion}"
+  - Nivel CEFR estimado actual: ${nivelTarget}
+  - Tipo de intervención solicitada: "${tipo}" (${tipoInfo.descripcion}) ${tipoInfo.ejemplo ? `- Ejemplo: "${tipoInfo.ejemplo}"` : ""}
 
-Your job is to guide the conversation, help the candidate speak, and assess how informative their answers are for evaluating their English level.
+  [Objetivo]
+  Genera una sola intervención conversacional que:
+  1) sea del tipo indicado,
+  2) esté adaptada al nivel indicado,
+  3) fomente una respuesta útil para evaluar.
 
-You can:
-- Ask new job interview questions
-- Rephrase or repeat questions if needed
-- Encourage the candidate to elaborate
-- Give light feedback or clarification
 
-Do **not** introduce a new topic or question if the candidate did not properly answer the last one. In that case, kindly help them give a better answer to the same question.
-Try to cover different subjects during the conversation.
-Try to match your language complexity to the candidate's English level (${perfilUsuario.nivel}), using simpler structures if needed to ensure understanding and fluency.
+  [Contexto]
+  Último mensaje del usuario:
+  "${mensajeDelUsuario}"
 
-After each exchange, return a score called "info_value" from 1 to 5:
-- 1 = no usable information
-- 3 = acceptable but basic response
-- 5 = rich, detailed answer that helps evaluate fluency
+  Historial reciente de la conversación:
+  ${contexto}
 
-Always respond using this JSON format:
-{
-  "reply": "your full reply here",
-  "info_value": 1 to 5
+  Recuerda: mantén una conversación fluida y real.
+  `;
 }
 
-Here are the last interactions:
-${ultimas}
-
-Candidate's last message:
-${mensajeDelUsuario}`;
-}
 
 export function limpiarMemoriaLocal() {
   localStorage.removeItem("historial");
   localStorage.removeItem("usuario");
   localStorage.removeItem("evaluacionFinal");
-  localStorage.removeItem("valorInformativo");
-  localStorage.removeItem("respuestasValidas");
   localStorage.removeItem("feedbackResultado");
 }
-
-
-export function importarProgresoEvaluacion(valorInfo, respuestasValidas) {
-  totalValorInformativo = valorInfo;
-  cantidadRespuestasValidas = respuestasValidas;
-  actualizarBarraDeProgreso(); // ⬅️ se actualiza la barra visual
-}
-

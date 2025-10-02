@@ -2,6 +2,8 @@
 // 📁 botRender.js – Renderización de texto, animación y audio
 // =======================
 
+import { logDev, errorDev, warnDev } from './debug.js';
+
 import {
   animateMouthViseme,
   closeMouthSmoothly,
@@ -13,7 +15,8 @@ import {
 import {
   startListening,
   startMonitoring,
-  detenerGrabacion
+  detenerGrabacion,
+  reactivarEscuchaSegura
 } from './audio.js';
 import { manejarTurnoDelUsuario } from './botLogic.js';
 import { setEstado, getEstado } from './estado.js';
@@ -86,7 +89,7 @@ function configurarEventoPlay(boton, texto, spanElemento) {
       audioPlayer.currentTime = 0;
       closeMouthSmoothly();
       cancelarAnimacionTexto();
-      setEstado("sistema", "escuchando");
+      reactivarEscuchaSegura();
 
       boton.classList.remove("activo-reproduccion");
       boton.disabled = false;
@@ -100,7 +103,7 @@ function configurarEventoPlay(boton, texto, spanElemento) {
 
     // 🚫 Si hay otro audio sonando, ignoramos
     if (audioEnReproduccion || !puedeReproducir()) {
-      console.warn("⛔ No se puede reproducir en este estado");
+      warnDev("⛔ No se puede reproducir en este estado");
       return;
     }
 
@@ -124,7 +127,7 @@ function configurarEventoPlay(boton, texto, spanElemento) {
 
     leerTextoEnVozAlta(texto, spanElemento, () => {
       closeMouthSmoothly();
-      setEstado("sistema", "escuchando");
+      reactivarEscuchaSegura();
 
       boton.classList.remove("activo-reproduccion");
       boton.disabled = false;
@@ -198,7 +201,8 @@ export function reproducirTextoYAnimar(
 
   leerTextoEnVozAlta(texto, spanDestino, () => {
     closeMouthSmoothly();
-    setEstado("sistema", "escuchando");
+
+    reactivarEscuchaSegura();
 
     if (!soloAnimar) {
       asignarBotonPlayABurbuja(texto, spanDestino);
@@ -220,7 +224,7 @@ export function leerTextoEnVozAlta(texto, contenedorSpan, onEnd, soloAnimar = fa
   const audioPlayer = document.getElementById("respuesta-audio");
 
   if (!soloAnimar && !puedeReproducir()) {
-    console.warn("⛔ Reproducción bloqueada por estado actual");
+    warnDev("⛔ Reproducción bloqueada por estado actual");
     return;
   }
 
@@ -243,7 +247,7 @@ export function leerTextoEnVozAlta(texto, contenedorSpan, onEnd, soloAnimar = fa
         setEstado("sistema", "reproduciendo-texto");
       }
       sincronizarTextoConAudio(texto, contenedorSpan, audioPlayer, soloAnimar);
-    }).catch(err => console.error("❌ Error al reproducir audio:", err));
+    }).catch(err => errorDev("❌ Error al reproducir audio:", err));
   };
 
   if (cacheAudios.has(texto)) {

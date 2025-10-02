@@ -1,6 +1,7 @@
 // anastasiaAnimation.js
 
 import * as flubber from "https://cdn.jsdelivr.net/npm/flubber/+esm";
+import { logDev, errorDev, warnDev } from './debug.js';
 
 /**
  * Easing cuadrático tipo ease-in-out

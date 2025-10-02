@@ -1,6 +1,13 @@
 // 📁 ui.js – Manejo visual del estado y temporizador
 
-import { detenerGrabacion } from './audio.js';
+import { logDev, errorDev, warnDev } from './debug.js';
+import {
+  detenerGrabacion,
+  startListening,
+  startMonitoring,
+  evaluarCondicionesDeEscucha,
+  detenerRecursosDeAudio
+} from './audio.js';
 import { onEstadoChange, getEstado } from './estado.js';
 
 // =======================
@@ -11,6 +18,12 @@ onEstadoChange((clave, valor) => {
     setEstadoIcono(valor);
     actualizarIndicadorEstado(valor);
     document.body.setAttribute("data-estado-sistema", valor);
+
+    // 🧠 Si el sistema entra en "escuchando", evaluar si debe activar mic
+    if (valor === "escuchando") {
+      evaluarCondicionesDeEscucha();
+    }
+    return;
   }
 
   if (clave === "micMuted") {
@@ -20,17 +33,22 @@ onEstadoChange((clave, valor) => {
     if (valor) {
       micIcon.className = "fas fa-microphone-slash text-muted";
       micBtn.classList.add("btn-mic-muted");
+
+      const sistema = getEstado("sistema");
+      if (sistema === "grabando") {
+        detenerGrabacion("mute-activado");
+        logDev("🎙️ Grabación detenida por mute.");
+      }
+
+      detenerRecursosDeAudio(); // Limpieza completa
     } else {
       micIcon.className = "fas fa-microphone";
       micBtn.classList.remove("btn-mic-muted");
-    }
 
-    // Cortar grabación si muteás mientras hablás
-    if (valor && getEstado("sistema") === "grabando") {
-      import("./audio.js").then(modulo => {
-        modulo.detenerGrabacion("mute-activado");
-        console.log("🎙️ Grabación detenida por mute.");
-      });
+      if (getEstado("sistema") === "escuchando") {
+        evaluarCondicionesDeEscucha();
+        logDev("🎙️ Micrófono reactivado y escuchando.");
+      }
     }
   }
 });
@@ -119,28 +137,27 @@ export function resetearTemporizador() {
 }
 
 // =======================
-// 💬 Vista de feedback final (Paso 6)
+// 💬 Vista de feedback final (Paso 9)
 // =======================
 export function mostrarVistaFeedback(result) {
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 9; i++) {
     const div = document.getElementById(`paso-${i}`);
     if (div) {
-      div.classList.toggle("d-none", i !== 7);
-      div.classList.toggle("d-flex", i === 7);
+      div.classList.toggle("d-none", i !== 9);
+      div.classList.toggle("d-flex", i === 9);
     }
   }
 
-  const paso7 = document.getElementById("paso-7");
-  if (paso7) {
-    paso7.classList.remove("card");
-    paso7.classList.add("card-feedback", "d-flex", "flex-column");
+  const paso9 = document.getElementById("paso-9");
+  if (paso9) {
+    paso9.classList.remove("card");
+    paso9.classList.add("card-feedback", "d-flex", "flex-column");
   }
 
   const container = document.getElementById("feedback-render");
   if (!container) return;
 
-  const nombreUsuario = JSON.parse(localStorage.getItem("usuario") || "{}").nombre || "el candidato";
-  const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
+  const nombreUsuario = getEstado("usuario")?.nombre || "el candidato";
 
   const nivel = result.nivel || "Desconocido";
   const mensaje = result.mensaje || "";
@@ -166,10 +183,9 @@ export function mostrarVistaFeedback(result) {
     <div class="container py-4 px-3">
       <h2 class="text-center mb-2">¡Buen trabajo, ${nombreUsuario}! 🎉</h2>
 
-      ${!esEstudiante
-        ? `<div class="text-center display-3 fw-bold text-primary">${nivel}</div>
-           <div class="text-center text-muted mb-4">Tu nivel de inglés estimado</div>`
-        : `<div class="text-center text-muted mb-4 fst-italic">${mensaje}</div>`}
+      <div class="text-center display-3 fw-bold text-primary">${nivel}</div>
+      <div class="text-center text-muted mb-4">Tu nivel de inglés estimado</div>
+
       <h5 class="mt-3">Fortalezas</h5>
       <ul class="lista-observaciones mb-4 text-muted small">
         ${renderFortalezas(fortalezas)}
@@ -203,7 +219,7 @@ export function actualizarIndicadorEstado(estado) {
     case "procesando-chat":
     case "cargando-audio":
       texto = esPrimerTurno
-        ? "Preparando la entrevista..."
+        ? "Preparando el test..."
         : "Un momento... preparando la respuesta.";
       break;
     case "reproduciendo-texto":
@@ -237,5 +253,4 @@ const observer = new MutationObserver(mutations => {
   }
 });
 
-// Observador para estado del sistema (clase en body)
 observer.observe(document.body, { attributes: true });

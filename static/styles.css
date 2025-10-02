@@ -61,7 +61,7 @@ body {
   padding-bottom: 2rem;
 }
 
-#paso-5{
+#paso-7{
   padding-bottom: 0 !important;
 }
 
@@ -154,7 +154,7 @@ input.form-control:focus {
 }
 
 /* ==== PILLS DE SUGERENCIA ==== */
-.pill-cargo {
+.pill-situacion {
   display: inline-block;
   padding: 6px 12px;
   background: #ffffff;
@@ -166,8 +166,14 @@ input.form-control:focus {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.pill-cargo:hover {
+.pill-situacion:hover {
   background: var(--violeta-claro);
+}
+
+.pill-situacion:last-child {
+  border-color: var(--violeta);
+  font-weight: 500;
+  color: var(--violeta-oscuro);
 }
 
 /* ==== ÁREA DEL CHAT ==== */
@@ -291,7 +297,7 @@ input.form-control:focus {
 }
 
 /* ==== FEEDBACK FINAL ==== */
-#paso-7 h2 {
+#paso-9 h2 {
   font-size: 1.5rem;
 }
 #feedback-nivel {
@@ -344,7 +350,7 @@ input.form-control:focus {
 
 .barra {
   width: 6px;
-  background-color: #e0defa; /* tono apagado para barras no activas */
+  background-color: #e0defa;
   border-radius: 3px;
 }
 
@@ -372,6 +378,18 @@ input.form-control:focus {
 /* Nivel alto → todas activas */
 .nivel-btn[data-nivel="alto"] .barra {
   background-color: #7b61ff;
+}
+
+.icono-instruccion {
+  font-size: 1.3rem;
+  min-width: 28px;
+  display: inline-block;
+  background: var(--degradado-violeta);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  line-height: 1.2;
+  overflow: visible;
 }
 
 #paso-1 h2 {
@@ -417,7 +435,7 @@ input.form-control:focus {
     margin-top: 10px !important;
   }
 
-  #paso-5 {
+  #paso-7 {
     overflow-y: auto;
     padding-top: 0 !important;
   }
@@ -510,3 +528,37 @@ input.form-control:focus {
   }
 }
 
+.idioma-opcion {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  background-color: #fff;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.idioma-opcion span.fi.fis {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-size: cover;
+  display: inline-block;
+  flex-shrink: 0;
+  border: none !important;
+}
+
+.idioma-opcion:hover {
+  background-color: #f4edfd;
+  border-color: var(--violeta);
+}
+
+.idioma-opcion.selected {
+  background-color: #e9dafa;
+  border-color: var(--violeta);
+  font-weight: 500;
+}
