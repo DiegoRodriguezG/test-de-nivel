@@ -10,8 +10,21 @@ from pydantic import BaseModel, Field
 import traceback
 
 load_dotenv()
+
+# Middleware para manejar el prefijo /testdenivel
+class PrefixMiddleware:
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+        return self.app(environ, start_response)
+
 app = Flask(__name__)
-app.config['APPLICATION_ROOT'] = '/testdenivel'
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/testdenivel')
 CORS(app)
 client = OpenAI()
 
