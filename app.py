@@ -11,22 +11,17 @@ import traceback
 
 load_dotenv()
 
-# Middleware para manejar el prefijo /testdenivel
-class PrefixMiddleware:
-    def __init__(self, app, prefix=''):
-        self.app = app
-        self.prefix = prefix
-
-    def __call__(self, environ, start_response):
-        if environ['PATH_INFO'].startswith(self.prefix):
-            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
-            environ['SCRIPT_NAME'] = self.prefix
-        return self.app(environ, start_response)
-
 app = Flask(__name__)
-app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/testdenivel')
 CORS(app)
 client = OpenAI()
+
+# Inyectar SCRIPT_NAME desde headers cuando viene de nginx
+@app.before_request
+def set_script_name():
+    from flask import request
+    script_name = request.headers.get('X-Forwarded-Prefix', '')
+    if script_name:
+        request.environ['SCRIPT_NAME'] = script_name
 
 CHAR_LIMIT = 3000  # Límite de caracteres por prompt
 
