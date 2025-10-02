@@ -6,10 +6,12 @@ import os
 import subprocess
 import json
 import tempfile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import traceback
 
 load_dotenv()
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/testdenivel'
 CORS(app)
 client = OpenAI()
 
@@ -19,11 +21,6 @@ CHAR_LIMIT = 3000  # Límite de caracteres por prompt
 class Observacion(BaseModel):
     tipo: str  # "fortaleza" o "consejo"
     texto: str
-
-class EvaluacionFinal(BaseModel):
-    nivel: str
-    mensaje: str
-    observaciones: list[Observacion]
 
 @app.route("/")
 def index():
@@ -54,7 +51,7 @@ def transcribe():
         print("📤 Enviando a OpenAI para transcripción...")
         with open(output_path, "rb") as f:
             transcription = client.audio.transcriptions.create(
-                model="whisper-1",
+                model="gpt-4o-mini-transcribe",
                 file=f
             )
 
@@ -77,67 +74,86 @@ def transcribe():
             except Exception as err:
                 print(f"⚠️ No se pudo borrar {path}:", err)
 
+class DistribucionCEFR(BaseModel):
+    A1: int
+    A2: int
+    B1: int
+    B2: int
+    C1: int
+
+    def suma_valida(self) -> bool:
+        return sum(self.dict().values()) == 100
+
+class EvaluacionFinal(BaseModel):
+    nivel: str
+    mensaje: str
+    observaciones: list[Observacion]
+
+class TurnoEvaluado(BaseModel):
+    reply: str = Field(..., description="Pregunta generada para el usuario")
+    Q: float = Field(..., description="Calidad informativa (de 0 a 1)")
+    P_nueva: DistribucionCEFR
+
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         data = request.json
-        prompt = data["message"][:CHAR_LIMIT]  # Truncar si es necesario
-        print("💬 Usuario:", prompt)
+        prompt = data["message"][:CHAR_LIMIT]
+        print("💬 Prompt recibido:\n", prompt)
 
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "interview_reply",
-                    "description": "Response from Anastasia, the interviewer.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "output": {
-                                "type": "string",
-                                "description": "What Anastasia will say to the user."
-                            },
-                            "info_value": {
-                                "type": "integer",
-                                "description": "A score from 1 to 5 indicating how informative the user's last response is."
-                            }
-                        },
-                        "required": ["output", "info_value"]
-                    }
-                }
-            }
-        ]
-
-        completion = client.chat.completions.create(
-            model="gpt-4.1-mini-2025-04-14",
+        completion = client.beta.chat.completions.parse(
+            model="gpt-5-nano",
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You are Anastasia, a professional interviewer simulating a job interview in English. "
-                        "You can ask questions, request clarification, or make comments. "
-                        "Also rate the user's last answer from 1 to 5 as 'info_value' based on how useful it is for evaluating their English. "
-                        "Always respond using the 'interview_reply' function."
+                        "Eres una entrevistadora especializada en evaluación oral de idiomas mediante una conversación breve y natural.\n\n"
+                        "Rol:\n"
+                        "- Habla SIEMPRE en el idioma objetivo indicado en el mensaje de usuario.\n"
+                        "- Genera solo UNA intervención corta con UNA pregunta clara.\n"
+                        "- Adapta la dificultad de tu intervención al nivel CEFR estimado que se pasa en el mensaje de usuario.\n"
+                        "- Usa el tema/situación, historial reciente y último mensaje para dar fluidez y NO repetir preguntas. Pero NO te quedes pegado, amplía la conversación\n\n"
+                        "Evaluación:\n"
+                        "- Evalúa SOLO la última respuesta del usuario.\n"
+                        "- Calcula Q ∈ [0,1], la calidad de información que aporta SOLO la última respuesta para estimar el nivel de idioma :\n"
+                        "  • Q ≤ 0.3 → respuesta con información casi nula para evaluar nivel (muy corta, genérica, memorizada, evasiva).\n"
+                        "  • 0.4 < Q < 0.7 → respuesta con algo de información, pero limitada o desarrollo).\n"
+                        "  • Q ≥ 0.7 → respuesta suficientemente rica: clara, con contenido real, suficiente para extraer evidencias de nivel\n"
+                        "- Calcula P_nueva = distribución CEFR (A1–C1) que refleje SOLO esta última respuesta.\n"
+                        "  • Siempre suma 100 con valores enteros.\n"
+                        "  • Respuesta con muchos errores o sin sentido → peso en A1"
+                        "  • Respuesta muy básica, con vocabulario limitado, algunos errores o frases sueltas → peso en A1/A2.\n"
+                        "  • Respuesta con ideas completas y control básico → peso en A2/B1.\n"
+                        "  • Respuesta con fluidez y conectores → peso en B1/B2.\n"
+                        "  • Respuesta con estructuras avanzadas, matiz y precisión → peso en B2/C1.\n"
+                        "  • Respuesta con gran dominio del idioma → peso en C1.\n"
+                        "Si es la primera respuesta del usuario dale Q = 0"
+                        "Si no es la primera respuesta del usuarios y Q ≤ 0.4, antes de tu pregunta incluye un consejo breve y empático en español (máx. 1 línea).\n\n"
+                        "Formato JSON estricto (sin texto extra):\n"
+                        "{\n"
+                        '  "reply": "tu próxima intervención en el idioma objetivo",\n'
+                        '  "Q": número entre 0 y 1,\n'
+                        '  "P_nueva": { "A1": %, "A2": %, "B1": %, "B2": %, "C1": % }\n'
+                        "}"
                     )
                 },
                 {"role": "user", "content": prompt}
             ],
-            tools=tools,
-            tool_choice={"type": "function", "function": {"name": "interview_reply"}}
+            response_format=TurnoEvaluado
         )
 
-        tool_call = completion.choices[0].message.tool_calls[0]
-        args = json.loads(tool_call.function.arguments)
+        parsed = completion.choices[0].message.parsed
 
-        print("🤖 GPT responde:", args)
+        if not parsed.P_nueva.suma_valida():
+            raise ValueError("❌ La distribución CEFR no suma 100.")
 
-        return jsonify({
-            "reply": args["output"],
-            "info_value": args["info_value"]
-        })
+        print("✅ JSON estructurado recibido:", parsed)
+        return jsonify(parsed.dict())
+
 
     except Exception as e:
         print("❌ Error en /chat:", e)
+        traceback.print_exc()  # 👈 esto te da el stack completo
         return jsonify({"error": str(e)}), 500
 
 @app.route("/tts", methods=["POST"])
@@ -169,18 +185,22 @@ def evaluate():
             {
                 "role": "system",
                 "content": (
-                    "Eres un evaluador profesional de nivel de inglés. Basado en el historial completo de conversación entre un candidato y una entrevistadora, "
-                    "entrega una evaluación estructurada en español, usando solo un mensaje de aliento/resumen y una lista de observaciones. Háblale directo al candidato. Cada observación debe ser breve, amable, útil y con ejemplos concretos de la conversación.\n\n"
-                    "Usa este formato JSON de ejemplo:\n"
+                   "Eres un evaluador profesional de nivel de inglés. Basado en el historial completo de conversación entre un candidato y una entrevistadora, entrega una evaluación final clara, en español, usando este formato JSON:\n\n"
                     "{\n"
                     "  \"nivel\": \"B1 - Intermedio\",\n"
-                    "  \"mensaje\": \"Tu nivel te permite comunicarte con confianza en la mayoría de contextos laborales.\",\n"
+                    "  \"mensaje\": \"Mensaje resumen empático y directo (máx 1 frase)\",\n"
                     "  \"observaciones\": [\n"
-                    "    { \"tipo\": \"fortaleza\", \"texto\": \"Mantuviste fluidez al responder preguntas abiertas y sin usar muletillas.\" },\n"
-                    "    { \"tipo\": \"consejo\", \"texto\": \"Practica tiempos verbales en pasado como ‘I used to...’ o ‘I struggled with...’\" }\n"
+                    "    { \"tipo\": \"fortaleza\", \"texto\": \"...\" },\n"
+                    "    { \"tipo\": \"fortaleza\", \"texto\": \"...\" },\n"
+                    "    { \"tipo\": \"consejo\", \"texto\": \"...\" },\n"
+                    "    { \"tipo\": \"consejo\", \"texto\": \"...\" }\n"
                     "  ]\n"
                     "}\n\n"
-                    "Usa un tono amable y profesional. Exactamente 2 fortalezas y 2 consejos, en orden. Max 150 car. cada una. No incluyas explicaciones fuera del JSON."
+                    "Evalúa con justicia. Si el usuario mostró frases muy básicas, errores constantes o respuestas muy cortas, puedes asignar A1.\n"
+                    "Si respondió con fluidez y estructuras avanzadas, puedes asignar C1.\n"
+                    "Si respondió poco, o con baja calidad, igualmente debes entregar un diagnóstico y consejos.\n\n"
+                    "Las observaciones deben ser útiles, breves (máx 150 caracteres), y basadas en fragmentos reales de la conversación.\n"
+                    "Usa un tono amable, profesional y constructivo. No incluyas explicaciones fuera del JSON."
                 )
             },
             {
@@ -190,7 +210,7 @@ def evaluate():
         ]
 
         completion = client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model="gpt-5-mini",
             messages=messages,
             response_format=EvaluacionFinal,
         )
