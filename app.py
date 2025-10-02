@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
@@ -12,16 +13,18 @@ import traceback
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configurar ProxyFix para manejar headers de proxy
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+    x_prefix=1
+)
+
 CORS(app)
 client = OpenAI()
-
-# Inyectar SCRIPT_NAME desde headers cuando viene de nginx
-@app.before_request
-def set_script_name():
-    from flask import request
-    script_name = request.headers.get('X-Forwarded-Prefix', '')
-    if script_name:
-        request.environ['SCRIPT_NAME'] = script_name
 
 CHAR_LIMIT = 3000  # Límite de caracteres por prompt
 
