@@ -1,3 +1,6 @@
+//main.js
+
+import { logDev, errorDev, warnDev } from './debug.js';
 import { initBotAnimations } from './anastasiaAnimation.js';
 import {
   startListening,
@@ -11,8 +14,7 @@ import {
 } from './ui.js';
 import {
   manejarTurnoDelUsuario,
-  limpiarMemoriaLocal,
-  importarProgresoEvaluacion
+  limpiarMemoriaLocal
 } from './botLogic.js';
 import {
   mostrarRespuestaDelUsuario,
@@ -21,23 +23,13 @@ import {
   renderizarBurbujaDeBot,
   reproducirTextoYAnimar
 } from './botRender.js';
-import { setEstado, getEstado } from './estado.js';
-
-let usuario = {
-  nombre: "",
-  cargo: "",
-  nivel: ""
-};
+import { getEstado, setEstado, actualizarEstadoParcial } from './estado.js';
 
 window.onload = () => {
   detectarCompatibilidadGrabacion();
   configurarBotonesUI();
   cargarAvatarSVG();
-  cargarListaCargos();
-
-  if (!localStorage.getItem("esEstudiantePoliglota")) {
-    localStorage.setItem("esEstudiantePoliglota", "no");
-  }
+  cargarListaSituaciones();
 
   const usuarioGuardado = localStorage.getItem("usuario");
   const historialGuardado = localStorage.getItem("historial");
@@ -49,61 +41,113 @@ window.onload = () => {
       const parsed = JSON.parse(resultadoPrevio);
       mostrarVistaFeedback(parsed);
     } else {
-      mostrarPaso(6);
+      mostrarPaso(9);
     }
     return;
   }
 
   if (usuarioGuardado && historialGuardado) {
     const usuarioParsed = JSON.parse(usuarioGuardado);
-    usuario = usuarioParsed;
-    mostrarPaso(5);
+    setEstado("usuario", usuarioParsed);
+    mostrarPaso(8);
     iniciarChat();
   }
 };
 
 function configurarBotonesUI() {
+
+  //Paso 1: Bienvenida
   document.getElementById("empezar-btn").onclick = () => mostrarPaso(2);
 
+  //Paso 2: Nombre
   document.getElementById("btn-atras-a-paso-1").onclick = () => mostrarPaso(1);
   document.getElementById("btn-siguiente-a-paso-3").onclick = () => {
-    usuario.nombre = document.getElementById("input-nombre").value.trim();
-    if (!usuario.nombre) {
+    const nombre = document.getElementById("input-nombre").value.trim();
+    if (!nombre) {
       alert("Por favor escribe tu nombre.");
       return;
     }
+    actualizarEstadoParcial("usuario", { nombre });
+
     mostrarPaso(3);
   };
 
+  //Paso 3: Idioma
+  document.getElementById("input-idioma").setAttribute("readonly", "true");
   document.getElementById("btn-atras-a-paso-2").onclick = () => mostrarPaso(2);
   document.getElementById("btn-siguiente-a-paso-4").onclick = () => {
-    usuario.cargo = document.getElementById("input-cargo").value.trim();
-    if (!usuario.cargo) {
-      alert("Por favor ingresa el cargo.");
+    const idioma = document.getElementById("input-idioma").value.trim();
+    if (!idioma) {
+      alert("Por favor selecciona un idioma.");
       return;
     }
+    actualizarEstadoParcial("usuario", { idioma });
+
     mostrarPaso(4);
   };
 
+  // Evento para selección visual de idioma
+  document.querySelectorAll(".idioma-opcion").forEach(opcion => {
+    opcion.onclick = () => {
+      document.querySelectorAll(".idioma-opcion").forEach(el => el.classList.remove("selected"));
+      opcion.classList.add("selected");
+      const idioma = opcion.dataset.idioma;
+      actualizarEstadoParcial("usuario", { idioma });
+      document.getElementById("input-idioma").value = idioma;
+      document.getElementById('idioma-seleccionado-situacion').textContent = idioma;
+      document.getElementById('idioma-seleccionado-nivel').textContent = idioma;
+    };
+  });
+
+  //Paso 4: Situación
+  document.getElementById("btn-atras-a-paso-3").onclick = () => mostrarPaso(3);
+  document.getElementById("btn-siguiente-a-paso-5").onclick = () => {
+    const situacion = document.getElementById("input-situacion").value.trim();
+    if (!situacion) {
+      alert("Por favor selecciona una situación.");
+      return;
+    }
+    actualizarEstadoParcial("usuario", { situacion });
+
+    mostrarPaso(5);
+  };
+
+  // Pills para sugerencias:
+  document.querySelectorAll(".pill-situacion")?.forEach(pill => {
+    pill.onclick = () => {
+      document.getElementById("input-situacion").value = pill.textContent;
+    };
+  });
+
+  //Paso 5: Nivel
+  document.getElementById("btn-atras-a-paso-4").onclick = () => mostrarPaso(4);
   document.querySelectorAll(".nivel-btn").forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll(".nivel-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      usuario.nivel = btn.dataset.nivel;
+      actualizarEstadoParcial("usuario", { nivel: btn.dataset.nivel });
     };
   });
-
-  document.getElementById("btn-atras-a-paso-3").onclick = () => mostrarPaso(3);
-  document.getElementById("btn-comenzar-entrevista").onclick = () => {
-    if (!usuario.nivel) {
-      alert("Selecciona un nivel de inglés.");
+  document.getElementById("btn-siguiente-a-paso-6").onclick = () => {
+    const { nivel } = getEstado("usuario");
+    if (!nivel) {
+      alert("Por favor selecciona un nivel antes de continuar.");
       return;
     }
-    if (!usuario.nombre || !usuario.cargo || !usuario.nivel) {
+    mostrarPaso(6);
+  };
+
+  //Paso 6: Instrucciones
+  document.getElementById("btn-atras-a-paso-5").onclick = () => mostrarPaso(5);
+  document.getElementById("btn-comenzar-test").onclick = () => {
+    const { nombre, idioma, situacion, nivel } = getEstado("usuario");
+
+    if (!nombre || !idioma || !situacion || !nivel) {
       alert("Falta completar uno o más pasos anteriores.");
       return;
     }
-    mostrarPaso(5);
+
+    mostrarPaso(7);
     iniciarChat();
   };
 
@@ -148,15 +192,15 @@ function configurarBotonesUI() {
       });
 
       if (response.ok) {
-        mostrarPaso(7);
+        mostrarPaso(9);
         mostrarVistaFeedback(JSON.parse(localStorage.getItem("feedbackResultado")));
       } else {
-        console.error("❌ Error en envío HubSpot:", await response.text());
+        errorDev("❌ Error en envío HubSpot:", await response.text());
         errorDiv.textContent = "Hubo un problema al enviar tus datos. Intenta nuevamente.";
         errorDiv.classList.remove("d-none");
       }
     } catch (err) {
-      console.error("❌ Error en conexión HubSpot:", err);
+      errorDev("❌ Error en conexión HubSpot:", err);
       errorDiv.textContent = "No se pudo conectar con el servidor. Intenta más tarde.";
       errorDiv.classList.remove("d-none");
     }
@@ -169,24 +213,22 @@ function configurarBotonesUI() {
     modal.show();
   };
   document.getElementById("btnConfirmarTerminar").onclick = () => resetApp();
-  document.getElementById("btn-try-again").onclick = () => resetApp();
+  //document.getElementById("btn-try-again").onclick = () => resetApp();
+  document.getElementById("btn-try-again").onclick = () => {
+    window.location.href = "https://www.poliglota.org/?utm_medium=referral&utm_source=testdenivelai";
+  };
 }
 
 function mostrarPaso(n) {
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 9; i++) {
     const div = document.getElementById(`paso-${i}`);
-    const divb = document.getElementById(`paso-${i}b`);
     if (div) {
       div.classList.toggle("d-none", i !== n);
       div.classList.toggle("d-flex", i === n);
     }
-    if (divb) {
-      divb.classList.toggle("d-none", `${i}.5` !== `${n}`);
-      divb.classList.toggle("d-flex", `${i}.5` === `${n}`);
-    }
   }
 
-  const mostrarProgreso = n >= 2 && n <= 4;
+  const mostrarProgreso = n >= 2 && n <= 6;
   const barra = document.getElementById("barra-progreso-contenedor");
   const texto = document.getElementById("texto-progreso");
 
@@ -195,7 +237,7 @@ function mostrarPaso(n) {
 
   if (mostrarProgreso) {
     const pasoVisual = n - 1;
-    actualizarProgresoVisual(pasoVisual, 3);
+    actualizarProgresoVisual(pasoVisual, 5);
   }
 }
 
@@ -207,7 +249,7 @@ function actualizarProgresoVisual(pasoActual, totalPasos) {
   if (texto && pasoActual <= totalPasos) texto.textContent = `Paso ${pasoActual} de ${totalPasos}`;
 }
 
-function obtenerCargosAleatorios(lista, cantidad = 8) {
+function obtenerSituacionesAleatorias(lista, cantidad = 8) {
   const copia = [...lista];
   for (let i = copia.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -216,39 +258,49 @@ function obtenerCargosAleatorios(lista, cantidad = 8) {
   return copia.slice(0, cantidad);
 }
 
-function cargarListaCargos() {
-  fetch(window.RUTA_CARGOS)
+function cargarListaSituaciones() {
+  fetch(window.RUTA_SITUACIONES)
     .then(res => res.json())
     .then(data => {
-      const cargosAleatorios = obtenerCargosAleatorios(data, 8);
-      const datalist = document.getElementById("cargos-sugeridos");
-      const pillsContainer = document.getElementById("pills-cargo");
+      const situacionesAleatorias = obtenerSituacionesAleatorias(data, 8);
+      const datalist = document.getElementById("situaciones-sugeridas");
+      const pillsContainer = document.getElementById("pills-situacion");
 
       if (datalist) {
         datalist.innerHTML = "";
-        cargosAleatorios.forEach(c => {
+        situacionesAleatorias.forEach(s => {
           const opt = document.createElement("option");
-          opt.value = c;
+          opt.value = s;
           datalist.appendChild(opt);
         });
       }
 
       if (pillsContainer) {
         pillsContainer.innerHTML = "";
-        cargosAleatorios.forEach(c => {
+
+        // Agrega los pills de situaciones
+        situacionesAleatorias.forEach(s => {
           const pill = document.createElement("div");
-          pill.className = "pill-cargo";
-          pill.textContent = c;
-          pill.onclick = () => document.getElementById("input-cargo").value = c;
+          pill.className = "pill-situacion";
+          pill.textContent = s;
+          pill.onclick = () => document.getElementById("input-situacion").value = s;
           pillsContainer.appendChild(pill);
         });
+
+        // Agrega el pill de refrescar temas
+        const refreshPill = document.createElement("div");
+        refreshPill.className = "pill-situacion";
+        refreshPill.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Ver más temas';
+        refreshPill.onclick = () => cargarListaSituaciones();
+        pillsContainer.appendChild(refreshPill);
       }
     })
-    .catch(() => console.warn("⚠️ No se pudo cargar la lista de cargos."));
+    .catch(() => warnDev("⚠️ No se pudo cargar la lista de situaciones."));
 }
 
 function iniciarChat() {
   const historial = prepararHistorial();
+  setEstado("historialConversacion", historial);
   const esHistorialVacio = historial.length === 0;
   const esperaRespuestaUsuario = historial.at(-1)?.pregunta && !historial.at(-1)?.respuesta;
 
@@ -256,12 +308,7 @@ function iniciarChat() {
   localStorage.setItem("primerTurno", esPrimerTurno ? "true" : "false");
   setEstado("primerTurno", esPrimerTurno);
 
-  // 🔄 Restaurar progreso si existe
-  const valInfo = parseInt(localStorage.getItem("valorInformativo") || "0");
-  const respValidas = parseInt(localStorage.getItem("respuestasValidas") || "0");
-  importarProgresoEvaluacion(valInfo, respValidas);
-
-  localStorage.setItem("usuario", JSON.stringify(usuario));
+  localStorage.setItem("usuario", JSON.stringify(getEstado("usuario")));
 
   if (!esHistorialVacio) {
     restaurarHistorialEnPantalla();
@@ -275,7 +322,7 @@ function iniciarChat() {
       setEstado("sistema", "reproduciendo-texto");
       reproducirTextoYAnimar(
         historial.at(-1).pregunta,
-        usuario,
+        getEstado("usuario"),
         historial,
         null,
         false,
@@ -283,7 +330,7 @@ function iniciarChat() {
       );
     });
   } else {
-    requestAnimationFrame(() => manejarTurnoDelUsuario(usuario, historial));
+    requestAnimationFrame(() => manejarTurnoDelUsuario(getEstado("usuario"), historial));
   }
 }
 
@@ -305,7 +352,7 @@ function restaurarHistorialEnPantalla() {
       asignarBotonPlayABurbuja(item.pregunta, span);
     }
     if (item.respuesta) {
-      mostrarRespuestaDelUsuario(item.respuesta, usuario, historialGuardado, true);
+      mostrarRespuestaDelUsuario(item.respuesta, getEstado("usuario"), historialGuardado, true);
     }
   });
 }
@@ -321,11 +368,14 @@ function resetApp() {
   limpiarMemoriaLocal();
   localStorage.removeItem("evaluacionFinal");
   localStorage.removeItem("feedbackResultado");
+  localStorage.removeItem("historial");
+  localStorage.removeItem("usuario");
   location.reload();
 }
 
 function cargarAvatarSVG() {
-  fetch('/static/anastasia.svg')
+  const basePath = document.querySelector('script[src*="main.js"]')?.src.match(/(.*\/)static\//)?.[1] || '/';
+  fetch(basePath + 'static/anastasia.svg')
     .then(res => res.text())
     .then(svg => {
       const contenedor = document.getElementById('contenedor-avatar');
@@ -374,83 +424,12 @@ function detectarCompatibilidadGrabacion() {
         alert("El acceso al micrófono está bloqueado. Ve a Configuración > Chrome > Micrófono para activarlo.");
       }
     }).catch(() => {
-      console.warn("No se pudo verificar el permiso del micrófono.");
+      warnDev("No se pudo verificar el permiso del micrófono.");
     });
   }
 }
 
-// 🔧 Habilitar botón de debug en local
-window.addEventListener("DOMContentLoaded", () => {
-  if (location.hostname === "localhost") {
-    const btn = document.getElementById("btn-debug-eval");
-    if (btn) {
-      btn.classList.remove("d-none");
-      btn.addEventListener("click", () => {
-        const esEstudiante = confirm("¿Simular como estudiante de Poliglota?");
-
-        const usuarioFalso = {
-          nombre: "Jose",
-          cargo: "Project Manager",
-          nivel: "intermedio",
-          empresa: "Poliglota"
-        };
-
-        const historialFalso = [
-          {
-            pregunta: "Tell me about yourself.",
-            respuesta: "Hi, my name is Jose and I love working with teams."
-          },
-          {
-            pregunta: "How do you handle conflict?",
-            respuesta: "I usually handle conflict by listening first and asking questions."
-          },
-          {
-            pregunta: "What is your greatest strength?",
-            respuesta: "My biggest strength is adaptability. I can adjust quickly to changes in a project."
-          },
-          {
-            pregunta: "Why are you interested in this position?",
-            respuesta: "Because I enjoy working in international environments and helping people grow."
-          }
-        ];
-
-        // Guarda en localStorage para simular sesión real
-        localStorage.setItem("usuario", JSON.stringify(usuarioFalso));
-        localStorage.setItem("historial", JSON.stringify(historialFalso));
-        localStorage.setItem("evaluacionFinal", "true");
-        localStorage.setItem("esEstudiantePoliglota", esEstudiante ? "sí" : "no");
-
-        // Llamar al backend real
-        fetch("/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ historial: historialFalso })
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log("✅ Resultado de evaluación simulada:", data);
-            localStorage.setItem("feedbackResultado", JSON.stringify(data));
-
-            if (esEstudiante) {
-              import("./ui.js").then(mod => mod.mostrarVistaFeedback(data));
-            } else {
-              // Muestra paso 6
-              mostrarPaso(6); // <-- 6 es el formulario antes del feedback
-            }
-          })
-          .catch(err => console.error("❌ Error en evaluación debug:", err));
-      });
-    }
-  }
-});
-
 window.addEventListener("evaluacionCompletada", (e) => {
   const result = e.detail.result;
-  const esEstudiante = (localStorage.getItem("esEstudiantePoliglota") || "").toLowerCase() === "sí";
-
-  if (esEstudiante) {
-    mostrarVistaFeedback(result);
-  } else {
-    mostrarPaso(6);
-  }
+  mostrarPaso(8);
 });

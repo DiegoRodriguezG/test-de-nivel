@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Simulador de entrevistas en inglés</title>
+  <title>Test de Nivel de Idioma con AI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap -->
@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- Flag Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons/css/flag-icons.min.css">
 </head>
 <body class="bg-light">
 
@@ -30,7 +32,7 @@
 
           <!-- Progreso pasos preparación -->
           <div class="px-3 pt-3" id="barra-progreso-contenedor" style="display: none;">
-            <div id="texto-progreso" class="mb-1 text-end small text-muted">Paso 1 de 3</div>
+            <div id="texto-progreso" class="mb-1 text-end small text-muted">Paso 1 de 5</div>
             <div class="w-100 bg-light rounded" style="height: 6px; overflow: hidden;">
               <div id="barra-progreso" style="height: 100%; width: 0%; background: linear-gradient(to right, #00c48c, #00b8a9); transition: width 0.4s ease;"></div>
             </div>
@@ -38,41 +40,108 @@
 
           <!-- Paso 1: Bienvenida -->
           <div id="paso-1" class="d-flex flex-column h-100 p-4 align-items-center justify-content-center text-center">
-            <img src="/static/anastasia.webp" alt="Bienvenida" class="mb-4" />
-            <h2 class="mb-3">Practica tu entrevista en inglés</h2>
+            <img src="{{ url_for('static', filename='anastasia.webp') }}" alt="Bienvenida" class="mb-4" />
+            <h2 class="mb-3">¡Descubre tu nivel de idioma en minutos!</h2>
             <p class="mb-4 text-muted" style="max-width: 400px;">
-              Conversa con nuestra IA y recibe feedback personalizado.
+              Conversa con nuestra IA y recibe feedback inmediato.
             </p>
             <button id="empezar-btn" class="btn btn-primary px-4 py-2">Comenzar</button>
           </div>
 
-          <!-- Paso 2: Nombre -->
+          <!-- Paso 2: Nombre (1) -->
           <div id="paso-2" class="d-none flex-column h-100 p-4">
             <h5 class="mb-3 text-center">¿Cuál es tu nombre?</h5>
-            <input type="text" class="form-control mb-4" id="input-nombre" placeholder="Ej: Elena" />
+            <input type="text" class="form-control mb-4" id="input-nombre" placeholder="Ej: Pascuala" />
             <div class="d-flex justify-content-between mt-auto">
               <button id="btn-atras-a-paso-1" class="btn btn-secondary">Atrás</button>
               <button id="btn-siguiente-a-paso-3" class="btn btn-primary">Siguiente</button>
             </div>
           </div>
 
-          <!-- Paso 3: Cargo -->
+          <!-- Paso 3: Idioma (2) -->
           <div id="paso-3" class="d-none flex-column h-100 p-4">
-            <h5 class="mb-3 text-center">¿A qué cargo te gustaría postular?</h5>
-            <p class="text-muted text-center mb-4">Escríbelo o selecciona uno de la lista.</p>
-            <input type="text" class="form-control mb-2" id="input-cargo" placeholder="Ej: Veterinaria" list="cargos-sugeridos" />
-            <datalist id="cargos-sugeridos"></datalist>
-            <div id="pills-cargo" class="d-flex flex-wrap mb-4"></div>
+            <h5 class="mb-3 text-center">¿Qué idioma quieres evaluar?</h5>
+            <p class="text-muted text-center mb-3">Selecciona un idioma de la lista</p>
+
+            <div id="lista-idiomas" class="mb-4" style="max-height: 320px; overflow-y: auto;">
+              <div class="idioma-opcion" data-idioma="inglés">
+                <span class="fi fis fi-gb me-2 rounded-circle border"></span> Inglés
+              </div>
+              <div class="idioma-opcion" data-idioma="francés">
+                <span class="fi fis fi-fr me-2 rounded-circle border"></span> Francés
+              </div>
+              <div class="idioma-opcion" data-idioma="portugués">
+                <span class="fi fis fi-br me-2 rounded-circle border"></span> Portugués
+              </div>
+              <div class="idioma-opcion" data-idioma="italiano">
+                <span class="fi fis fi-it me-2 rounded-circle border"></span> Italiano
+              </div>
+              <div class="idioma-opcion" data-idioma="alemán">
+                <span class="fi fis fi-de me-2 rounded-circle border"></span> Alemán
+              </div>
+              <div class="idioma-opcion" data-idioma="japonés">
+                <span class="fi fis fi-jp me-2 rounded-circle border"></span> Japonés
+              </div>
+              <div class="idioma-opcion" data-idioma="coreano">
+                <span class="fi fis fi-kr me-2 rounded-circle border"></span> Coreano
+              </div>
+              <div class="idioma-opcion" data-idioma="chino mandarín">
+                <span class="fi fis fi-cn me-2 rounded-circle border"></span> Chino Mandarín
+              </div>
+              <div class="idioma-opcion" data-idioma="ruso">
+                <span class="fi fis fi-ru me-2 rounded-circle border"></span> Ruso
+              </div>
+              <div class="idioma-opcion" data-idioma="árabe">
+                <span class="fi fis fi-sa me-2 rounded-circle border"></span> Árabe
+              </div>
+              <div class="idioma-opcion" data-idioma="hebreo">
+                <span class="fi fis fi-il me-2 rounded-circle border"></span> Hebreo
+              </div>
+              <div class="idioma-opcion" data-idioma="catalán">
+                <span class="fi fis fi-es me-2 rounded-circle border"></span> Catalán
+              </div>
+              <div class="idioma-opcion" data-idioma="sueco">
+                <span class="fi fis fi-se me-2 rounded-circle border"></span> Sueco
+              </div>
+              <div class="idioma-opcion" data-idioma="neerlandés">
+                <span class="fi fis fi-nl me-2 rounded-circle border"></span> Holandés
+              </div>
+              <div class="idioma-opcion" data-idioma="turco">
+                <span class="fi fis fi-tr me-2 rounded-circle border"></span> Turco
+              </div>
+              <div class="idioma-opcion" data-idioma="hindi">
+                <span class="fi fis fi-in me-2 rounded-circle border"></span> Hindi
+              </div>
+              <div class="idioma-opcion" data-idioma="polaco">
+                <span class="fi fis fi-pl me-2 rounded-circle border"></span> Polaco
+              </div>
+            </div>
+
+            <input type="hidden" id="input-idioma" />
+
             <div class="d-flex justify-content-between mt-auto">
               <button id="btn-atras-a-paso-2" class="btn btn-secondary">Atrás</button>
               <button id="btn-siguiente-a-paso-4" class="btn btn-primary">Siguiente</button>
             </div>
           </div>
 
-          <!-- Paso 4: Nivel de inglés -->
+          <!-- Paso 4: Situación (3) -->
           <div id="paso-4" class="d-none flex-column h-100 p-4">
-            <h5 class="mb-3 text-center">¿Cuál es tu nivel de Inglés?</h5>
-            <p class="text-muted text-center mb-4">Ajustaremos tu entrevista según tu nivel.</p>
+            <h5 class="mb-3 text-center">¿Sobre qué te gustaría hablar?</h5>
+            <p class="text-muted text-center mb-4">Escribe o elige un tema de conversación para evaluar tu nivel de <span id="idioma-seleccionado-situacion">idioma</span></p>
+            <input type="text" class="form-control mb-2" id="input-situacion" placeholder="Ej: Películas, Viajes, Trabajo..." list="situaciones-sugeridas" />
+            <datalist id="situaciones-sugeridas"></datalist>
+            <div id="pills-situacion" class="d-flex flex-wrap mb-4"></div>
+            <div class="d-flex justify-content-between mt-auto">
+              <button id="btn-atras-a-paso-3" class="btn btn-secondary">Atrás</button>
+              <button id="btn-siguiente-a-paso-5" class="btn btn-primary">Siguiente</button>
+            </div>
+          </div>
+
+          <!-- Paso 5: Nivel de idioma (4) -->
+          <div id="paso-5" class="d-none flex-column h-100 p-4">
+            <h5 class="mb-3 text-center">¿Cómo te sientes hablando <span id="idioma-seleccionado-nivel">idioma</span>?</h5>
+            <p class="text-muted text-center mb-4">Solo es una referencia inicial. El test se encargará de medir tu nivel real.</p>
             <div class="d-flex flex-column gap-2">
               <div class="nivel-btn p-3 border rounded nivel-option" data-nivel="bajo">
                 <div class="d-flex align-items-center gap-2">
@@ -106,13 +175,45 @@
               </div>
             </div>
             <div class="d-flex justify-content-between mt-auto">
-              <button id="btn-atras-a-paso-3" class="btn btn-secondary">Atrás</button>
-              <button id="btn-comenzar-entrevista" class="btn btn-success">Comenzar entrevista</button>
+              <button id="btn-atras-a-paso-4" class="btn btn-secondary">Atrás</button>
+              <button id="btn-siguiente-a-paso-6" class="btn btn-primary">Siguiente</button>
             </div>
           </div>
 
-          <!-- Paso 5: Chat -->
-          <div id="paso-5" class="d-none flex-column h-100">
+          <!-- Paso 6: Instrucciones (5) -->
+          <div id="paso-6" class="d-none flex-column h-100 p-4">
+            <h2 class="mb-3 text-center">¿Estás listo para comenzar?</h2>
+            <div class="mb-4">
+              <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-comments icono-instruccion"></i>
+                <div class="ms-2">
+                  <strong>Conversa libremente</strong><br>
+                  <span class="text-muted">Responde con naturalidad sobre el tema que elegiste.</span>
+                </div>
+              </div>
+              <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-lightbulb icono-instruccion"></i>
+                <div class="ms-2">
+                  <strong>Desarrolla tus ideas</strong><br>
+                  <span class="text-muted">Explica, da ejemplos, exprésate con más que una frase.</span>
+                </div>
+              </div>
+              <div class="d-flex align-items-center">
+                <i class="fas fa-wand-magic-sparkles icono-instruccion"></i>
+                <div class="ms-2">
+                  <strong>Deja que el test se ajuste a ti</strong><br>
+                  <span class="text-muted">La IA adapta sus preguntas a tu nivel y estilo.</span>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between mt-auto">
+              <button id="btn-atras-a-paso-5" class="btn btn-secondary">Atrás</button>
+              <button id="btn-comenzar-test" class="btn btn-success">Comenzar test</button>
+            </div>
+          </div>
+
+          <!-- Paso 7: Chat -->
+          <div id="paso-7" class="d-none flex-column h-100">
             <div id="contenedor-avatar" class="text-center"></div>
             <!-- Barra de feedback informativo -->
             <div class="px-3 pt-2" id="barra-feedback-contenedor">
@@ -140,8 +241,8 @@
             <audio id="respuesta-audio" autoplay hidden></audio>
           </div>
 
-           <!-- Paso 6: Formulario contacto para NO estudiantes -->
-          <div id="paso-6" class="d-none flex-column h-100 p-4">
+           <!-- Paso 8: Formulario contacto para NO estudiantes -->
+          <div id="paso-8" class="d-none flex-column h-100 p-4">
             <h5 class="mb-3 text-center">¡Deja tus datos y recibe tu feedback!</h5>
             <form id="form-contacto">
               <div class="mb-3">
@@ -167,8 +268,8 @@
             </form>
           </div>
 
-          <!-- Paso 7: Feedback final -->
-          <div id="paso-7" class="d-none flex-column align-items-center">
+          <!-- Paso 9: Feedback final -->
+          <div id="paso-9" class="d-none flex-column align-items-center">
             <div id="feedback-render" class="w-100"></div>
             <div class="text-center mt-4">
               <button class="btn btn-primary" id="btn-try-again">Volver a comenzar</button>
@@ -192,7 +293,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
-          ¿Estás seguro que deseas terminar la entrevista? Se perderá tu progreso.
+          ¿Estás seguro que deseas terminar el test? Se perderá tu progreso.
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -202,15 +303,10 @@
     </div>
   </div>
 
-  <!-- 🔧 Botón oculto de debug -->
-  <button id="btn-debug-eval" class="position-fixed bottom-0 end-0 m-3 btn btn-sm btn-outline-secondary d-none">
-    Debug Evaluación
-  </button>
-
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    window.RUTA_CARGOS = "{{ url_for('static', filename='cargos.json') }}";
+    window.RUTA_SITUACIONES = "{{ url_for('static', filename='situaciones.json') }}";
   </script>
   <script type="module" src="{{ url_for('static', filename='main.js') }}"></script>
 
